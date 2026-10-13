@@ -25,7 +25,7 @@ mod inner {
         type STEPControl_Writer;
         #[cxx_name = "construct_unique"]
         pub fn STEPControl_Writer_new() -> UniquePtr<STEPControl_Writer>;
-        // TODO(bschwind) - Expose the full list of parameters here.
+        // TODO: Expose the STEP transfer mode (currently always `STEPControl_AsIs`).
         pub fn transfer_shape(
             writer: Pin<&mut STEPControl_Writer>,
             shape: &TopoDS_Shape,
