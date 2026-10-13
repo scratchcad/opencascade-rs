@@ -1,0 +1,27 @@
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      cargo:
+        update-types:
+          - minor
+          - patch
+        # A new OpenCASCADE release can change the C++ API the bindings wrap and forces a full
+        # rebuild in CI, so it gets a pull request of its own.
+        exclude-patterns:
+          - occt-sys
+
+  - package-ecosystem: github-actions
+    # The composite action in .github/actions is not picked up from the root directory.
+    directories:
+      - /
+      - /.github/actions/*
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns:
+          - "*"
