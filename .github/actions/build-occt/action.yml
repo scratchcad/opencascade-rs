@@ -23,7 +23,7 @@ runs:
 
     - name: Restore OpenCASCADE
       id: restore
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v6
       with:
         path: target/OCCT
         key: ${{ steps.key.outputs.key }}
@@ -37,7 +37,7 @@ runs:
     # throw the (slow) build away.
     - name: Save OpenCASCADE
       if: steps.restore.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v6
       with:
         path: target/OCCT
         key: ${{ steps.key.outputs.key }}
