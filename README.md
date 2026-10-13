@@ -86,8 +86,9 @@ Run the tests with `cargo test --workspace`.
 ## Credits
 
 The `scratchcad-occt-sys` bindings started as a fork of `opencascade-sys` from
-[bschwind/opencascade-rs](https://github.com/bschwind/opencascade-rs).
+[bschwind/opencascade-rs](https://github.com/bschwind/opencascade-rs). See [NOTICE](NOTICE) for
+the upstream copyright, its contributors and what this project changed.
 
 ## License
 
-LGPL-2.1, the same as OpenCASCADE.
+LGPL-2.1, the same as OpenCASCADE. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
