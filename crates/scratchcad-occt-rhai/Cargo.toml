@@ -11,7 +11,7 @@ categories = ["graphics", "science", "command-line-utilities"]
 
 [dependencies]
 cxx = "1"
-glam = "0.30"
+glam = "0.34"
 scratchcad-occt-sys = { version = "0.1", path = "../scratchcad-occt-sys" }
 rhai = "1.26"
 thiserror = "2"
