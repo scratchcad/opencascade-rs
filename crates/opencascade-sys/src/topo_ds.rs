@@ -10,21 +10,22 @@ mod inner {
         type TopAbs_Orientation = crate::top_abs::TopAbs_Orientation;
         type TopTools_ListOfShape = crate::top_tools::TopTools_ListOfShape;
 
+        /// Down-casts. Each fails with `Standard_TypeMismatch` when the shape is of another type.
         type TopoDS;
         #[Self = "TopoDS"]
-        pub fn Vertex(shape: &TopoDS_Shape) -> &TopoDS_Vertex;
+        pub fn Vertex(shape: &TopoDS_Shape) -> Result<&TopoDS_Vertex>;
         #[Self = "TopoDS"]
-        pub fn Edge(shape: &TopoDS_Shape) -> &TopoDS_Edge;
+        pub fn Edge(shape: &TopoDS_Shape) -> Result<&TopoDS_Edge>;
         #[Self = "TopoDS"]
-        pub fn Wire(shape: &TopoDS_Shape) -> &TopoDS_Wire;
+        pub fn Wire(shape: &TopoDS_Shape) -> Result<&TopoDS_Wire>;
         #[Self = "TopoDS"]
-        pub fn Face(shape: &TopoDS_Shape) -> &TopoDS_Face;
+        pub fn Face(shape: &TopoDS_Shape) -> Result<&TopoDS_Face>;
         #[Self = "TopoDS"]
-        pub fn Shell(shape: &TopoDS_Shape) -> &TopoDS_Shell;
+        pub fn Shell(shape: &TopoDS_Shape) -> Result<&TopoDS_Shell>;
         #[Self = "TopoDS"]
-        pub fn Solid(shape: &TopoDS_Shape) -> &TopoDS_Solid;
+        pub fn Solid(shape: &TopoDS_Shape) -> Result<&TopoDS_Solid>;
         #[Self = "TopoDS"]
-        pub fn Compound(shape: &TopoDS_Shape) -> &TopoDS_Compound;
+        pub fn Compound(shape: &TopoDS_Shape) -> Result<&TopoDS_Compound>;
 
         type TopoDS_Vertex;
         #[cxx_name = "upcast_ref"]
@@ -70,6 +71,9 @@ mod inner {
         pub fn TopoDS_Solid_to_owned(shape: &TopoDS_Solid) -> UniquePtr<TopoDS_Solid>;
 
         type TopoDS_Shape;
+        /// A null shape.
+        #[cxx_name = "construct_unique"]
+        pub fn TopoDS_Shape_new() -> UniquePtr<TopoDS_Shape>;
         #[cxx_name = "construct_unique"]
         pub fn TopoDS_Shape_to_owned(shape: &TopoDS_Shape) -> UniquePtr<TopoDS_Shape>;
         #[cxx_name = "Move"]
@@ -77,15 +81,18 @@ mod inner {
             self: Pin<&mut TopoDS_Shape>,
             position: &TopLoc_Location,
             raise_exception: bool,
-        );
+        ) -> Result<()>;
         #[cxx_name = "Location"]
         pub fn set_global_translation(
             self: Pin<&mut TopoDS_Shape>,
             translation: &TopLoc_Location,
             raise_exception: bool,
-        );
+        ) -> Result<()>;
         pub fn IsNull(self: &TopoDS_Shape) -> bool;
         pub fn IsEqual(self: &TopoDS_Shape, other: &TopoDS_Shape) -> bool;
+        pub fn IsSame(self: &TopoDS_Shape, other: &TopoDS_Shape) -> bool;
+        pub fn NbChildren(self: &TopoDS_Shape) -> i32;
+        pub fn Closed(self: &TopoDS_Shape) -> bool;
         pub fn ShapeType(self: &TopoDS_Shape) -> TopAbs_ShapeEnum;
         pub fn Orientation(self: &TopoDS_Shape) -> TopAbs_Orientation;
 
@@ -103,8 +110,13 @@ mod inner {
 
         type TopoDS_Builder;
         pub fn MakeCompound(self: &TopoDS_Builder, compound: Pin<&mut TopoDS_Compound>);
-        pub fn MakeShell(self: &TopoDS_Builder, compound: Pin<&mut TopoDS_Shell>);
-        pub fn Add(self: &TopoDS_Builder, shape: Pin<&mut TopoDS_Shape>, compound: &TopoDS_Shape);
+        pub fn MakeShell(self: &TopoDS_Builder, shell: Pin<&mut TopoDS_Shell>);
+        /// Fails with `TopoDS_UnCompatibleShapes` when `child` cannot be added to `shape`.
+        pub fn Add(
+            self: &TopoDS_Builder,
+            shape: Pin<&mut TopoDS_Shape>,
+            child: &TopoDS_Shape,
+        ) -> Result<()>;
 
         // This is dumb:
         // https://cxx.rs/extern-c++.html#explicit-shim-trait-impls
@@ -115,6 +127,7 @@ mod inner {
     }
 }
 
+unsafe impl Send for inner::TopoDS_Vertex {}
 unsafe impl Send for inner::TopoDS_Edge {}
 unsafe impl Send for inner::TopoDS_Wire {}
 unsafe impl Send for inner::TopoDS_Face {}

@@ -17,24 +17,31 @@ mod inner {
             points: &Handle_TColgp_HArray1OfPnt,
             periodic: bool,
             tolerance: f64,
-        ) -> UniquePtr<GeomAPI_Interpolate>;
+        ) -> Result<UniquePtr<GeomAPI_Interpolate>>;
         pub fn Load(
             self: Pin<&mut GeomAPI_Interpolate>,
             initial_tangent: &gp_Vec,
             final_tangent: &gp_Vec,
             scale: bool,
-        );
-        pub fn Perform(self: Pin<&mut GeomAPI_Interpolate>);
+        ) -> Result<()>;
+        pub fn Perform(self: Pin<&mut GeomAPI_Interpolate>) -> Result<()>;
         pub fn GeomAPI_Interpolate_Curve(
             interpolate: &GeomAPI_Interpolate,
-        ) -> UniquePtr<Handle_Geom_BSplineCurve>;
+        ) -> Result<UniquePtr<Handle_Geom_BSplineCurve>>;
 
         type GeomAPI_ProjectPointOnSurf;
         #[cxx_name = "construct_unique"]
         pub fn GeomAPI_ProjectPointOnSurf_new(
             origin: &gp_Pnt,
             surface: &Handle_Geom_Surface,
-        ) -> UniquePtr<GeomAPI_ProjectPointOnSurf>;
-        pub fn LowerDistanceParameters(self: &GeomAPI_ProjectPointOnSurf, u: &mut f64, v: &mut f64);
+        ) -> Result<UniquePtr<GeomAPI_ProjectPointOnSurf>>;
+        pub fn NbPoints(self: &GeomAPI_ProjectPointOnSurf) -> i32;
+        /// The (u, v) parameters of the nearest projection. Fails with `StdFail_NotDone` when
+        /// the projection found no solution.
+        pub fn GeomAPI_ProjectPointOnSurf_LowerDistanceParameters(
+            projector: &GeomAPI_ProjectPointOnSurf,
+            u: &mut f64,
+            v: &mut f64,
+        ) -> Result<()>;
     }
 }

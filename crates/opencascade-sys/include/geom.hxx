@@ -21,7 +21,9 @@ inline std::unique_ptr<Handle_Geom_BezierSurface> Geom_BezierSurface_new(const T
       new opencascade::handle<Geom_BezierSurface>(new Geom_BezierSurface(poles)));
 }
 
-inline const gp_Pnt &handle_geom_plane_location(const Handle_Geom_Plane &plane) { return plane->Location(); }
+inline const gp_Pnt &handle_geom_plane_location(const Handle_Geom_Plane &plane) {
+  return check_handle(plane)->Location();
+}
 
 inline std::unique_ptr<Handle_Geom_BezierCurve>
 Geom_BezierCurve_to_handle(std::unique_ptr<Geom_BezierCurve> bezier_curve) {
@@ -39,7 +41,9 @@ new_HandleGeomPlane_from_HandleGeomSurface(const Handle_Geom_Surface &surface) {
 }
 
 inline std::unique_ptr<gp_Pnt> HandleGeomCurve_Value(const Handle_Geom_Curve &curve, const Standard_Real U) {
-  return std::unique_ptr<gp_Pnt>(new gp_Pnt(curve->Value(U)));
+  return std::unique_ptr<gp_Pnt>(new gp_Pnt(check_handle(curve)->Value(U)));
 }
 
-inline const Handle_Standard_Type &DynamicType(const Handle_Geom_Surface &surface) { return surface->DynamicType(); }
+inline const Handle_Standard_Type &DynamicType(const Handle_Geom_Surface &surface) {
+  return check_handle(surface)->DynamicType();
+}

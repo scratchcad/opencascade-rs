@@ -15,6 +15,6 @@ mod inner {
             tolerance: f64,
             shared: bool,
             wires: Pin<&mut Handle_TopTools_HSequenceOfShape>,
-        );
+        ) -> Result<()>;
     }
 }

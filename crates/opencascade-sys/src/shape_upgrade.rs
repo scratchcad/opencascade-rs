@@ -14,12 +14,12 @@ mod inner {
             unify_edges: bool,
             unify_faces: bool,
             concat_b_splines: bool,
-        ) -> UniquePtr<ShapeUpgrade_UnifySameDomain>;
+        ) -> Result<UniquePtr<ShapeUpgrade_UnifySameDomain>>;
         #[cxx_name = "AllowInternalEdges"]
         pub fn allow_internal_edges(self: Pin<&mut ShapeUpgrade_UnifySameDomain>, allow: bool);
         #[cxx_name = "Build"]
-        pub fn build(self: Pin<&mut ShapeUpgrade_UnifySameDomain>);
+        pub fn build(self: Pin<&mut ShapeUpgrade_UnifySameDomain>) -> Result<()>;
         #[cxx_name = "Shape"]
-        pub fn shape(self: &ShapeUpgrade_UnifySameDomain) -> &TopoDS_Shape;
+        pub fn shape(self: &ShapeUpgrade_UnifySameDomain) -> Result<&TopoDS_Shape>;
     }
 }

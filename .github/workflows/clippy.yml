@@ -11,13 +11,16 @@ jobs:
     name: Cargo Clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: "recursive"
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: stable
           components: clippy
       - name: Cache Rust Dependencies
         uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --all-targets -- -D warnings
+      - name: Cache OpenCASCADE
+        uses: actions/cache@v4
+        with:
+          path: target/OCCT
+          key: occt-7.8.1-${{ runner.os }}-${{ hashFiles('Cargo.toml') }}
+      - run: cargo clippy --workspace --all-targets -- -D warnings

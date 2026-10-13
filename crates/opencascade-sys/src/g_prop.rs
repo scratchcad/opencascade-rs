@@ -10,11 +10,11 @@ mod inner {
 
         type GProp_GProps;
         #[cxx_name = "construct_unique"]
-        fn GProps_new() -> UniquePtr<GProp_GProps>;
-        fn Mass(self: &GProp_GProps) -> f64;
-        fn StaticMoments(self: &GProp_GProps, lx: &mut f64, ly: &mut f64, lz: &mut f64);
-        fn MomentOfInertia(self: &GProp_GProps, axis: &gp_Ax1) -> f64;
-        fn RadiusOfGyration(self: &GProp_GProps, axis: &gp_Ax1) -> f64;
-        fn GProp_GProps_CentreOfMass(props: &GProp_GProps) -> UniquePtr<gp_Pnt>;
+        pub fn GProps_new() -> UniquePtr<GProp_GProps>;
+        pub fn Mass(self: &GProp_GProps) -> f64;
+        pub fn StaticMoments(self: &GProp_GProps, lx: &mut f64, ly: &mut f64, lz: &mut f64);
+        pub fn MomentOfInertia(self: &GProp_GProps, axis: &gp_Ax1) -> f64;
+        pub fn RadiusOfGyration(self: &GProp_GProps, axis: &gp_Ax1) -> f64;
+        pub fn GProp_GProps_CentreOfMass(props: &GProp_GProps) -> UniquePtr<gp_Pnt>;
     }
 }

@@ -14,7 +14,10 @@ mod inner {
         // Handles
         type Handle_Geom_Curve;
         pub fn IsNull(self: &Handle_Geom_Curve) -> bool;
-        pub fn HandleGeomCurve_Value(curve: &Handle_Geom_Curve, u: f64) -> UniquePtr<gp_Pnt>;
+        pub fn HandleGeomCurve_Value(
+            curve: &Handle_Geom_Curve,
+            u: f64,
+        ) -> Result<UniquePtr<gp_Pnt>>;
 
         type Handle_Geom_BSplineCurve;
         pub fn IsNull(self: &Handle_Geom_BSplineCurve) -> bool;
@@ -27,7 +30,7 @@ mod inner {
 
         type Handle_Geom_Surface;
         pub fn IsNull(self: &Handle_Geom_Surface) -> bool;
-        pub fn DynamicType(surface: &Handle_Geom_Surface) -> &Handle_Standard_Type;
+        pub fn DynamicType(surface: &Handle_Geom_Surface) -> Result<&Handle_Standard_Type>;
 
         type Handle_Geom_BezierSurface;
         pub fn IsNull(self: &Handle_Geom_BezierSurface) -> bool;
@@ -45,7 +48,7 @@ mod inner {
         pub fn Geom_CylindricalSurface_new(
             axis: &gp_Ax3,
             radius: f64,
-        ) -> UniquePtr<Handle_Geom_CylindricalSurface>;
+        ) -> Result<UniquePtr<Handle_Geom_CylindricalSurface>>;
         pub fn cylinder_to_surface(
             cylinder_handle: &Handle_Geom_CylindricalSurface,
         ) -> UniquePtr<Handle_Geom_Surface>;
@@ -53,7 +56,7 @@ mod inner {
         type Geom_BezierSurface;
         pub fn Geom_BezierSurface_new(
             poles: &TColgp_Array2OfPnt,
-        ) -> UniquePtr<Handle_Geom_BezierSurface>;
+        ) -> Result<UniquePtr<Handle_Geom_BezierSurface>>;
         pub fn bezier_to_surface(
             bezier_handle: &Handle_Geom_BezierSurface,
         ) -> UniquePtr<Handle_Geom_Surface>;
@@ -62,13 +65,13 @@ mod inner {
         #[cxx_name = "construct_unique"]
         pub fn Geom_BezierCurve_new_points(
             poles: &TColgp_HArray1OfPnt,
-        ) -> UniquePtr<Geom_BezierCurve>;
+        ) -> Result<UniquePtr<Geom_BezierCurve>>;
 
         pub fn Geom_BezierCurve_to_handle(
             law: UniquePtr<Geom_BezierCurve>,
         ) -> UniquePtr<Handle_Geom_BezierCurve>;
 
-        pub fn handle_geom_plane_location(plane: &Handle_Geom_Plane) -> &gp_Pnt;
+        pub fn handle_geom_plane_location(plane: &Handle_Geom_Plane) -> Result<&gp_Pnt>;
 
         pub fn new_HandleGeomPlane_from_HandleGeomSurface(
             geom_surface_handle: &Handle_Geom_Surface,

@@ -9,11 +9,11 @@ mod inner {
 
         type StlAPI_Writer;
         #[cxx_name = "construct_unique"]
-        fn StlAPI_Writer_new() -> UniquePtr<StlAPI_Writer>;
-        fn write_stl(
+        pub fn StlAPI_Writer_new() -> UniquePtr<StlAPI_Writer>;
+        pub fn write_stl(
             writer: Pin<&mut StlAPI_Writer>,
             shape: &TopoDS_Shape,
             filename: String,
-        ) -> bool;
+        ) -> Result<bool>;
     }
 }

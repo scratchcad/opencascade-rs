@@ -11,10 +11,13 @@ mod inner {
 
         type BRepLib;
         #[Self = "BRepLib"]
-        pub fn BuildCurves3d(shape: &TopoDS_Shape) -> bool;
+        pub fn BuildCurves3d(shape: &TopoDS_Shape) -> Result<bool>;
 
         type BRepLib_ToolTriangulatedShape;
         #[Self = "BRepLib_ToolTriangulatedShape"]
-        pub fn ComputeNormals(face: &TopoDS_Face, triangulation: &Handle_Poly_Triangulation);
+        pub fn ComputeNormals(
+            face: &TopoDS_Face,
+            triangulation: &Handle_Poly_Triangulation,
+        ) -> Result<()>;
     }
 }

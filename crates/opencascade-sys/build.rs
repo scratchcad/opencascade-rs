@@ -49,52 +49,14 @@ fn main() {
         println!("cargo:rustc-link-lib=dylib=user32");
     }
 
-    // TODO(bschwind) - Iterate over the src/ directory to populate this.
-    let rust_bridges = [
-        "src/b_rep.rs",
-        "src/b_rep_adaptor.rs",
-        "src/b_rep_algo_api.rs",
-        "src/b_rep_bnd_lib.rs",
-        "src/b_rep_builder_api.rs",
-        "src/b_rep_feat.rs",
-        "src/b_rep_fillet_api.rs",
-        "src/b_rep_g_prop.rs",
-        "src/b_rep_int_curve_surface.rs",
-        "src/b_rep_lib.rs",
-        "src/b_rep_mesh.rs",
-        "src/b_rep_offset_api.rs",
-        "src/b_rep_prim_api.rs",
-        "src/b_rep_tools.rs",
-        "src/bin_tools.rs",
-        "src/bnd.rs",
-        "src/bop_algo.rs",
-        "src/geom.rs",
-        "src/geom2d.rs",
-        "src/geom_abs.rs",
-        "src/geom_api.rs",
-        "src/g_prop.rs",
-        "src/gc.rs",
-        "src/gc_pnts.rs",
-        "src/gp.rs",
-        "src/if_select.rs",
-        "src/iges_control.rs",
-        "src/law.rs",
-        "src/message.rs",
-        "src/poly.rs",
-        "src/shape_analysis.rs",
-        "src/shape_upgrade.rs",
-        "src/standard.rs",
-        "src/step_control.rs",
-        "src/stl_api.rs",
-        "src/t_col_gp.rs",
-        "src/top_abs.rs",
-        "src/top_exp.rs",
-        "src/top_loc.rs",
-        "src/top_tools.rs",
-        "src/topo_ds.rs",
-    ];
+    let mut rust_bridges: Vec<_> = std::fs::read_dir("src")
+        .expect("failed to read src/")
+        .map(|entry| entry.expect("failed to read src/ entry").path())
+        .filter(|path| path.extension().is_some_and(|ext| ext == "rs") && !path.ends_with("lib.rs"))
+        .collect();
+    rust_bridges.sort();
 
-    let mut build = cxx_build::bridges(rust_bridges);
+    let mut build = cxx_build::bridges(&rust_bridges);
 
     if is_windows_gnu {
         build.define("OCC_CONVERT_SIGNALS", "TRUE");
@@ -107,7 +69,7 @@ fn main() {
 
     build
         .cpp(true)
-        .flag_if_supported("-std=c++11")
+        .flag_if_supported("-std=c++14")
         .define("_USE_MATH_DEFINES", "TRUE")
         .include(occt_config.include_dir)
         .include("include")
@@ -115,9 +77,8 @@ fn main() {
 
     println!("cargo:rustc-link-lib=static=rust-occt");
 
-    for bridge in rust_bridges {
-        println!("cargo:rerun-if-changed={bridge}");
-    }
+    println!("cargo:rerun-if-changed=src");
+    println!("cargo:rerun-if-changed=include");
 }
 
 struct OcctConfig {

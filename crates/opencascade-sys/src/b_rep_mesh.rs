@@ -9,11 +9,11 @@ mod inner {
 
         type BRepMesh_IncrementalMesh;
         #[cxx_name = "construct_unique"]
-        fn IncrementalMesh_new(
+        pub fn IncrementalMesh_new(
             shape: &TopoDS_Shape,
             deflection: f64,
-        ) -> UniquePtr<BRepMesh_IncrementalMesh>;
-        fn Shape(self: &BRepMesh_IncrementalMesh) -> &TopoDS_Shape;
-        fn IsDone(self: &BRepMesh_IncrementalMesh) -> bool;
+        ) -> Result<UniquePtr<BRepMesh_IncrementalMesh>>;
+        pub fn Shape(self: &BRepMesh_IncrementalMesh) -> Result<&TopoDS_Shape>;
+        pub fn IsDone(self: &BRepMesh_IncrementalMesh) -> bool;
     }
 }

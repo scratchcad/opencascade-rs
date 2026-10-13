@@ -25,31 +25,34 @@ mod inner {
         #[cxx_name = "construct_unique"]
         pub fn BRepBuilderAPI_MakeVertex_gp_Pnt(
             point: &gp_Pnt,
-        ) -> UniquePtr<BRepBuilderAPI_MakeVertex>;
-        pub fn Vertex(self: Pin<&mut BRepBuilderAPI_MakeVertex>) -> &TopoDS_Vertex;
+        ) -> Result<UniquePtr<BRepBuilderAPI_MakeVertex>>;
+        pub fn Vertex(self: Pin<&mut BRepBuilderAPI_MakeVertex>) -> Result<&TopoDS_Vertex>;
 
         type BRepBuilderAPI_MakeEdge;
         #[cxx_name = "construct_unique"]
         pub fn BRepBuilderAPI_MakeEdge_HandleGeomCurve(
             geom_curve_handle: &Handle_Geom_Curve,
-        ) -> UniquePtr<BRepBuilderAPI_MakeEdge>;
+        ) -> Result<UniquePtr<BRepBuilderAPI_MakeEdge>>;
         #[cxx_name = "construct_unique"]
         pub fn BRepBuilderAPI_MakeEdge_circle(
             circle: &gp_Circ,
-        ) -> UniquePtr<BRepBuilderAPI_MakeEdge>;
+        ) -> Result<UniquePtr<BRepBuilderAPI_MakeEdge>>;
         #[cxx_name = "construct_unique"]
         pub fn BRepBuilderAPI_MakeEdge_gp_Pnt_gp_Pnt(
             p1: &gp_Pnt,
             p2: &gp_Pnt,
-        ) -> UniquePtr<BRepBuilderAPI_MakeEdge>;
+        ) -> Result<UniquePtr<BRepBuilderAPI_MakeEdge>>;
         #[cxx_name = "construct_unique"]
         pub fn BRepBuilderAPI_MakeEdge_CurveSurface2d(
             curve_handle: &Handle_Geom2d_Curve,
             surface_handle: &Handle_Geom_Surface,
-        ) -> UniquePtr<BRepBuilderAPI_MakeEdge>;
-        pub fn Vertex1(self: &BRepBuilderAPI_MakeEdge) -> &TopoDS_Vertex;
-        pub fn Edge(self: Pin<&mut BRepBuilderAPI_MakeEdge>) -> &TopoDS_Edge;
-        pub fn Build(self: Pin<&mut BRepBuilderAPI_MakeEdge>, progress: &Message_ProgressRange);
+        ) -> Result<UniquePtr<BRepBuilderAPI_MakeEdge>>;
+        pub fn Vertex1(self: &BRepBuilderAPI_MakeEdge) -> Result<&TopoDS_Vertex>;
+        pub fn Edge(self: Pin<&mut BRepBuilderAPI_MakeEdge>) -> Result<&TopoDS_Edge>;
+        pub fn Build(
+            self: Pin<&mut BRepBuilderAPI_MakeEdge>,
+            progress: &Message_ProgressRange,
+        ) -> Result<()>;
         pub fn IsDone(self: &BRepBuilderAPI_MakeEdge) -> bool;
 
         type BRepBuilderAPI_MakeWire;
@@ -59,20 +62,23 @@ mod inner {
         pub fn BRepBuilderAPI_MakeWire_edge_edge(
             edge_1: &TopoDS_Edge,
             edge_2: &TopoDS_Edge,
-        ) -> UniquePtr<BRepBuilderAPI_MakeWire>;
+        ) -> Result<UniquePtr<BRepBuilderAPI_MakeWire>>;
         #[cxx_name = "construct_unique"]
         pub fn BRepBuilderAPI_MakeWire_edge_edge_edge(
             edge_1: &TopoDS_Edge,
             edge_2: &TopoDS_Edge,
             edge_3: &TopoDS_Edge,
-        ) -> UniquePtr<BRepBuilderAPI_MakeWire>;
+        ) -> Result<UniquePtr<BRepBuilderAPI_MakeWire>>;
         #[rust_name = "add_edge"]
-        pub fn Add(self: Pin<&mut BRepBuilderAPI_MakeWire>, edge: &TopoDS_Edge);
+        pub fn Add(self: Pin<&mut BRepBuilderAPI_MakeWire>, edge: &TopoDS_Edge) -> Result<()>;
         #[rust_name = "add_wire"]
-        pub fn Add(self: Pin<&mut BRepBuilderAPI_MakeWire>, wire: &TopoDS_Wire);
-        pub fn Shape(self: Pin<&mut BRepBuilderAPI_MakeWire>) -> &TopoDS_Shape;
-        pub fn Wire(self: Pin<&mut BRepBuilderAPI_MakeWire>) -> &TopoDS_Wire;
-        pub fn Build(self: Pin<&mut BRepBuilderAPI_MakeWire>, progress: &Message_ProgressRange);
+        pub fn Add(self: Pin<&mut BRepBuilderAPI_MakeWire>, wire: &TopoDS_Wire) -> Result<()>;
+        pub fn Shape(self: Pin<&mut BRepBuilderAPI_MakeWire>) -> Result<&TopoDS_Shape>;
+        pub fn Wire(self: Pin<&mut BRepBuilderAPI_MakeWire>) -> Result<&TopoDS_Wire>;
+        pub fn Build(
+            self: Pin<&mut BRepBuilderAPI_MakeWire>,
+            progress: &Message_ProgressRange,
+        ) -> Result<()>;
         pub fn IsDone(self: &BRepBuilderAPI_MakeWire) -> bool;
 
         type BRepBuilderAPI_MakeFace;
@@ -80,38 +86,44 @@ mod inner {
         pub fn BRepBuilderAPI_MakeFace_wire(
             wire: &TopoDS_Wire,
             only_plane: bool,
-        ) -> UniquePtr<BRepBuilderAPI_MakeFace>;
+        ) -> Result<UniquePtr<BRepBuilderAPI_MakeFace>>;
         #[cxx_name = "construct_unique"]
         pub fn BRepBuilderAPI_MakeFace_surface(
             surface: &Handle_Geom_Surface,
             edge_tolerance: f64,
-        ) -> UniquePtr<BRepBuilderAPI_MakeFace>;
-        pub fn Face(self: &BRepBuilderAPI_MakeFace) -> &TopoDS_Face;
-        pub fn Shape(self: Pin<&mut BRepBuilderAPI_MakeFace>) -> &TopoDS_Shape;
-        pub fn Build(self: Pin<&mut BRepBuilderAPI_MakeFace>, progress: &Message_ProgressRange);
+        ) -> Result<UniquePtr<BRepBuilderAPI_MakeFace>>;
+        pub fn Face(self: &BRepBuilderAPI_MakeFace) -> Result<&TopoDS_Face>;
+        pub fn Shape(self: Pin<&mut BRepBuilderAPI_MakeFace>) -> Result<&TopoDS_Shape>;
+        pub fn Build(
+            self: Pin<&mut BRepBuilderAPI_MakeFace>,
+            progress: &Message_ProgressRange,
+        ) -> Result<()>;
         pub fn IsDone(self: &BRepBuilderAPI_MakeFace) -> bool;
         #[rust_name = "add_wire"]
-        pub fn Add(self: Pin<&mut BRepBuilderAPI_MakeFace>, wire: &TopoDS_Wire);
+        pub fn Add(self: Pin<&mut BRepBuilderAPI_MakeFace>, wire: &TopoDS_Wire) -> Result<()>;
 
         type BRepBuilderAPI_MakeSolid;
         #[cxx_name = "construct_unique"]
         pub fn BRepBuilderAPI_MakeSolid_new(
             shell: &TopoDS_Shell,
-        ) -> UniquePtr<BRepBuilderAPI_MakeSolid>;
-        pub fn Shape(self: Pin<&mut BRepBuilderAPI_MakeSolid>) -> &TopoDS_Shape;
-        pub fn Build(self: Pin<&mut BRepBuilderAPI_MakeSolid>, progress: &Message_ProgressRange);
+        ) -> Result<UniquePtr<BRepBuilderAPI_MakeSolid>>;
+        pub fn Shape(self: Pin<&mut BRepBuilderAPI_MakeSolid>) -> Result<&TopoDS_Shape>;
+        pub fn Build(
+            self: Pin<&mut BRepBuilderAPI_MakeSolid>,
+            progress: &Message_ProgressRange,
+        ) -> Result<()>;
         pub fn IsDone(self: &BRepBuilderAPI_MakeSolid) -> bool;
 
         type BRepBuilderAPI_MakeShapeOnMesh;
         #[cxx_name = "construct_unique"]
         pub fn BRepBuilderAPI_MakeShapeOnMesh_new(
             mesh: &Handle_Poly_Triangulation,
-        ) -> UniquePtr<BRepBuilderAPI_MakeShapeOnMesh>;
-        pub fn Shape(self: Pin<&mut BRepBuilderAPI_MakeShapeOnMesh>) -> &TopoDS_Shape;
+        ) -> Result<UniquePtr<BRepBuilderAPI_MakeShapeOnMesh>>;
+        pub fn Shape(self: Pin<&mut BRepBuilderAPI_MakeShapeOnMesh>) -> Result<&TopoDS_Shape>;
         pub fn Build(
             self: Pin<&mut BRepBuilderAPI_MakeShapeOnMesh>,
             progress: &Message_ProgressRange,
-        );
+        ) -> Result<()>;
         pub fn IsDone(self: &BRepBuilderAPI_MakeShapeOnMesh) -> bool;
 
         type BRepBuilderAPI_Transform;
@@ -120,9 +132,12 @@ mod inner {
             shape: &TopoDS_Shape,
             transform: &gp_Trsf,
             copy: bool,
-        ) -> UniquePtr<BRepBuilderAPI_Transform>;
-        pub fn Shape(self: Pin<&mut BRepBuilderAPI_Transform>) -> &TopoDS_Shape;
-        pub fn Build(self: Pin<&mut BRepBuilderAPI_Transform>, progress: &Message_ProgressRange);
+        ) -> Result<UniquePtr<BRepBuilderAPI_Transform>>;
+        pub fn Shape(self: Pin<&mut BRepBuilderAPI_Transform>) -> Result<&TopoDS_Shape>;
+        pub fn Build(
+            self: Pin<&mut BRepBuilderAPI_Transform>,
+            progress: &Message_ProgressRange,
+        ) -> Result<()>;
         pub fn IsDone(self: &BRepBuilderAPI_Transform) -> bool;
 
         type BRepBuilderAPI_GTransform;
@@ -131,9 +146,12 @@ mod inner {
             shape: &TopoDS_Shape,
             transform: &gp_GTrsf,
             copy: bool,
-        ) -> UniquePtr<BRepBuilderAPI_GTransform>;
-        pub fn Shape(self: Pin<&mut BRepBuilderAPI_GTransform>) -> &TopoDS_Shape;
-        pub fn Build(self: Pin<&mut BRepBuilderAPI_GTransform>, progress: &Message_ProgressRange);
+        ) -> Result<UniquePtr<BRepBuilderAPI_GTransform>>;
+        pub fn Shape(self: Pin<&mut BRepBuilderAPI_GTransform>) -> Result<&TopoDS_Shape>;
+        pub fn Build(
+            self: Pin<&mut BRepBuilderAPI_GTransform>,
+            progress: &Message_ProgressRange,
+        ) -> Result<()>;
         pub fn IsDone(self: &BRepBuilderAPI_GTransform) -> bool;
     }
 }

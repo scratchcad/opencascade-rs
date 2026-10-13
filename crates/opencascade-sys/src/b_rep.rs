@@ -20,17 +20,22 @@ mod inner {
         pub fn BRep_Builder_new() -> UniquePtr<BRep_Builder>;
         pub fn BRep_Builder_upcast_to_topods_builder(builder: &BRep_Builder) -> &TopoDS_Builder;
 
+        type TopoDS_Shape = crate::topo_ds::TopoDS_Shape;
+
         type BRep_Tool;
-        pub fn BRep_Tool_Surface(face: &TopoDS_Face) -> UniquePtr<Handle_Geom_Surface>;
+        /// Whether a wire or shell is closed (or an edge's vertices coincide).
+        #[Self = "BRep_Tool"]
+        pub fn IsClosed(shape: &TopoDS_Shape) -> bool;
+        pub fn BRep_Tool_Surface(face: &TopoDS_Face) -> Result<UniquePtr<Handle_Geom_Surface>>;
         pub fn BRep_Tool_Curve(
             edge: &TopoDS_Edge,
             first: &mut f64,
             last: &mut f64,
-        ) -> UniquePtr<Handle_Geom_Curve>;
-        pub fn BRep_Tool_Pnt(vertex: &TopoDS_Vertex) -> UniquePtr<gp_Pnt>;
+        ) -> Result<UniquePtr<Handle_Geom_Curve>>;
+        pub fn BRep_Tool_Pnt(vertex: &TopoDS_Vertex) -> Result<UniquePtr<gp_Pnt>>;
         pub fn BRep_Tool_Triangulation(
             face: &TopoDS_Face,
             location: Pin<&mut TopLoc_Location>,
-        ) -> UniquePtr<Handle_Poly_Triangulation>;
+        ) -> Result<UniquePtr<Handle_Poly_Triangulation>>;
     }
 }

@@ -23,7 +23,11 @@ mod inner {
         pub fn Law_Interpol_into_Law_Function(
             interpol: UniquePtr<Law_Interpol>,
         ) -> UniquePtr<Law_Function>;
-        pub fn Set(self: Pin<&mut Law_Interpol>, array: &TColgp_Array1OfPnt2d, periodic: bool);
+        pub fn Set(
+            self: Pin<&mut Law_Interpol>,
+            array: &TColgp_Array1OfPnt2d,
+            periodic: bool,
+        ) -> Result<()>;
     }
 
     impl UniquePtr<Handle_Law_Function> {}

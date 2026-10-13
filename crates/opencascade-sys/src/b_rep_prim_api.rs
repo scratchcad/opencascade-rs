@@ -19,9 +19,12 @@ mod inner {
             vec: &gp_Vec,
             copy: bool,
             canonize: bool,
-        ) -> UniquePtr<BRepPrimAPI_MakePrism>;
-        pub fn Shape(self: Pin<&mut BRepPrimAPI_MakePrism>) -> &TopoDS_Shape;
-        pub fn Build(self: Pin<&mut BRepPrimAPI_MakePrism>, progress: &Message_ProgressRange);
+        ) -> Result<UniquePtr<BRepPrimAPI_MakePrism>>;
+        pub fn Shape(self: Pin<&mut BRepPrimAPI_MakePrism>) -> Result<&TopoDS_Shape>;
+        pub fn Build(
+            self: Pin<&mut BRepPrimAPI_MakePrism>,
+            progress: &Message_ProgressRange,
+        ) -> Result<()>;
         pub fn IsDone(self: &BRepPrimAPI_MakePrism) -> bool;
 
         type BRepPrimAPI_MakeRevol;
@@ -31,9 +34,12 @@ mod inner {
             axis: &gp_Ax1,
             angle: f64,
             copy: bool,
-        ) -> UniquePtr<BRepPrimAPI_MakeRevol>;
-        pub fn Shape(self: Pin<&mut BRepPrimAPI_MakeRevol>) -> &TopoDS_Shape;
-        pub fn Build(self: Pin<&mut BRepPrimAPI_MakeRevol>, progress: &Message_ProgressRange);
+        ) -> Result<UniquePtr<BRepPrimAPI_MakeRevol>>;
+        pub fn Shape(self: Pin<&mut BRepPrimAPI_MakeRevol>) -> Result<&TopoDS_Shape>;
+        pub fn Build(
+            self: Pin<&mut BRepPrimAPI_MakeRevol>,
+            progress: &Message_ProgressRange,
+        ) -> Result<()>;
         pub fn IsDone(self: &BRepPrimAPI_MakeRevol) -> bool;
 
         type BRepPrimAPI_MakeCylinder;
@@ -42,9 +48,12 @@ mod inner {
             coord_system: &gp_Ax2,
             radius: f64,
             height: f64,
-        ) -> UniquePtr<BRepPrimAPI_MakeCylinder>;
-        pub fn Shape(self: Pin<&mut BRepPrimAPI_MakeCylinder>) -> &TopoDS_Shape;
-        pub fn Build(self: Pin<&mut BRepPrimAPI_MakeCylinder>, progress: &Message_ProgressRange);
+        ) -> Result<UniquePtr<BRepPrimAPI_MakeCylinder>>;
+        pub fn Shape(self: Pin<&mut BRepPrimAPI_MakeCylinder>) -> Result<&TopoDS_Shape>;
+        pub fn Build(
+            self: Pin<&mut BRepPrimAPI_MakeCylinder>,
+            progress: &Message_ProgressRange,
+        ) -> Result<()>;
         pub fn IsDone(self: &BRepPrimAPI_MakeCylinder) -> bool;
 
         type BRepPrimAPI_MakeBox;
@@ -54,9 +63,12 @@ mod inner {
             dx: f64,
             dy: f64,
             dz: f64,
-        ) -> UniquePtr<BRepPrimAPI_MakeBox>;
-        pub fn Shape(self: Pin<&mut BRepPrimAPI_MakeBox>) -> &TopoDS_Shape;
-        pub fn Build(self: Pin<&mut BRepPrimAPI_MakeBox>, progress: &Message_ProgressRange);
+        ) -> Result<UniquePtr<BRepPrimAPI_MakeBox>>;
+        pub fn Shape(self: Pin<&mut BRepPrimAPI_MakeBox>) -> Result<&TopoDS_Shape>;
+        pub fn Build(
+            self: Pin<&mut BRepPrimAPI_MakeBox>,
+            progress: &Message_ProgressRange,
+        ) -> Result<()>;
         pub fn IsDone(self: &BRepPrimAPI_MakeBox) -> bool;
 
         type BRepPrimAPI_MakeSphere;
@@ -65,9 +77,12 @@ mod inner {
             axis: &gp_Ax2,
             r: f64,
             angle_1: f64,
-        ) -> UniquePtr<BRepPrimAPI_MakeSphere>;
-        pub fn Shape(self: Pin<&mut BRepPrimAPI_MakeSphere>) -> &TopoDS_Shape;
-        pub fn Build(self: Pin<&mut BRepPrimAPI_MakeSphere>, progress: &Message_ProgressRange);
+        ) -> Result<UniquePtr<BRepPrimAPI_MakeSphere>>;
+        pub fn Shape(self: Pin<&mut BRepPrimAPI_MakeSphere>) -> Result<&TopoDS_Shape>;
+        pub fn Build(
+            self: Pin<&mut BRepPrimAPI_MakeSphere>,
+            progress: &Message_ProgressRange,
+        ) -> Result<()>;
         pub fn IsDone(self: &BRepPrimAPI_MakeSphere) -> bool;
 
         type BRepPrimAPI_MakeCone;
@@ -78,9 +93,12 @@ mod inner {
             r2: f64,
             h: f64,
             angle: f64,
-        ) -> UniquePtr<BRepPrimAPI_MakeCone>;
-        pub fn Shape(self: Pin<&mut BRepPrimAPI_MakeCone>) -> &TopoDS_Shape;
-        pub fn Build(self: Pin<&mut BRepPrimAPI_MakeCone>, progress: &Message_ProgressRange);
+        ) -> Result<UniquePtr<BRepPrimAPI_MakeCone>>;
+        pub fn Shape(self: Pin<&mut BRepPrimAPI_MakeCone>) -> Result<&TopoDS_Shape>;
+        pub fn Build(
+            self: Pin<&mut BRepPrimAPI_MakeCone>,
+            progress: &Message_ProgressRange,
+        ) -> Result<()>;
         pub fn IsDone(self: &BRepPrimAPI_MakeCone) -> bool;
 
         type BRepPrimAPI_MakeTorus;
@@ -92,9 +110,12 @@ mod inner {
             angle_1: f64,
             angle_2: f64,
             angle_3: f64,
-        ) -> UniquePtr<BRepPrimAPI_MakeTorus>;
-        pub fn Shape(self: Pin<&mut BRepPrimAPI_MakeTorus>) -> &TopoDS_Shape;
-        pub fn Build(self: Pin<&mut BRepPrimAPI_MakeTorus>, progress: &Message_ProgressRange);
+        ) -> Result<UniquePtr<BRepPrimAPI_MakeTorus>>;
+        pub fn Shape(self: Pin<&mut BRepPrimAPI_MakeTorus>) -> Result<&TopoDS_Shape>;
+        pub fn Build(
+            self: Pin<&mut BRepPrimAPI_MakeTorus>,
+            progress: &Message_ProgressRange,
+        ) -> Result<()>;
         pub fn IsDone(self: &BRepPrimAPI_MakeTorus) -> bool;
     }
 }

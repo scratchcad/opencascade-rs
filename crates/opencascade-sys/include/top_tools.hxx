@@ -13,14 +13,15 @@ inline std::unique_ptr<Handle_TopTools_HSequenceOfShape> new_Handle_TopTools_HSe
 }
 
 inline void TopTools_HSequenceOfShape_append(Handle_TopTools_HSequenceOfShape &handle, const TopoDS_Shape &shape) {
+  check_handle(handle);
   handle->Append(shape);
 }
 
 inline Standard_Integer TopTools_HSequenceOfShape_length(const Handle_TopTools_HSequenceOfShape &handle) {
-  return handle->Length();
+  return check_handle(handle)->Length();
 }
 
 inline const TopoDS_Shape &TopTools_HSequenceOfShape_value(const Handle_TopTools_HSequenceOfShape &handle,
                                                            Standard_Integer index) {
-  return handle->Value(index);
+  return check_handle(handle)->Value(index);
 }

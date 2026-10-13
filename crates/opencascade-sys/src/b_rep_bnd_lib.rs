@@ -11,6 +11,19 @@ mod inner {
 
         type BRepBndLib;
         #[Self = "BRepBndLib"]
-        pub fn Add(shape: &TopoDS_Shape, bb: Pin<&mut Bnd_Box>, use_triangulation: bool);
+        pub fn Add(
+            shape: &TopoDS_Shape,
+            bb: Pin<&mut Bnd_Box>,
+            use_triangulation: bool,
+        ) -> Result<()>;
+
+        /// A tighter box than [`Add`]: uses the exact geometry instead of control polygons.
+        #[Self = "BRepBndLib"]
+        pub fn AddOptimal(
+            shape: &TopoDS_Shape,
+            bb: Pin<&mut Bnd_Box>,
+            use_triangulation: bool,
+            use_shape_tolerance: bool,
+        ) -> Result<()>;
     }
 }

@@ -6,7 +6,7 @@ mod inner {
         include!("opencascade-sys/include/standard.hxx");
 
         type Handle_Standard_Type;
-        pub fn type_name(handle: &Handle_Standard_Type) -> String;
+        pub fn type_name(handle: &Handle_Standard_Type) -> Result<String>;
         pub fn IsNull(self: &Handle_Standard_Type) -> bool;
     }
 }

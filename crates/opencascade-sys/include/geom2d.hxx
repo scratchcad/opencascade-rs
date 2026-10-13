@@ -24,5 +24,5 @@ HandleGeom2d_TrimmedCurve_to_curve(const Handle_Geom2d_TrimmedCurve &trimmed_cur
 }
 
 inline std::unique_ptr<gp_Pnt2d> ellipse_value(const Handle_Geom2d_Ellipse &ellipse, double u) {
-  return std::unique_ptr<gp_Pnt2d>(new gp_Pnt2d(ellipse->Value(u)));
+  return std::unique_ptr<gp_Pnt2d>(new gp_Pnt2d(check_handle(ellipse)->Value(u)));
 }

@@ -13,37 +13,37 @@ mod inner {
 
         type BRepGProp;
         #[Self = "BRepGProp"]
-        fn LinearProperties(
+        pub fn LinearProperties(
             shape: &TopoDS_Shape,
             props: Pin<&mut GProp_GProps>,
             skip_shared: bool,
             use_triangulation: bool,
-        );
+        ) -> Result<()>;
         #[Self = "BRepGProp"]
-        fn SurfaceProperties(
+        pub fn SurfaceProperties(
             shape: &TopoDS_Shape,
             props: Pin<&mut GProp_GProps>,
             skip_shared: bool,
             use_triangulation: bool,
-        );
+        ) -> Result<()>;
         #[Self = "BRepGProp"]
-        fn VolumeProperties(
+        pub fn VolumeProperties(
             shape: &TopoDS_Shape,
             props: Pin<&mut GProp_GProps>,
             only_closed: bool,
             skip_shared: bool,
             use_triangulation: bool,
-        );
+        ) -> Result<()>;
 
         type BRepGProp_Face;
         #[cxx_name = "construct_unique"]
-        fn BRepGProp_Face_new(face: &TopoDS_Face) -> UniquePtr<BRepGProp_Face>;
-        fn Normal(
+        pub fn BRepGProp_Face_new(face: &TopoDS_Face) -> Result<UniquePtr<BRepGProp_Face>>;
+        pub fn Normal(
             self: &BRepGProp_Face,
             u: f64,
             v: f64,
             point: Pin<&mut gp_Pnt>,
             normal: Pin<&mut gp_Vec>,
-        );
+        ) -> Result<()>;
     }
 }

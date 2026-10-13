@@ -8,8 +8,8 @@ mod inner {
         type TopoDS_Shape = crate::topo_ds::TopoDS_Shape;
 
         #[cxx_name = "write_brep_bin"]
-        pub fn write(shape: &TopoDS_Shape, path: String) -> bool;
+        pub fn write(shape: &TopoDS_Shape, path: String) -> Result<bool>;
         #[cxx_name = "read_brep_bin"]
-        pub fn read(path: String) -> UniquePtr<TopoDS_Shape>;
+        pub fn read(path: String) -> Result<UniquePtr<TopoDS_Shape>>;
     }
 }

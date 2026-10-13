@@ -22,8 +22,8 @@ mod inner {
         ) -> UniquePtr<TopExp_Explorer>;
         pub fn More(self: &TopExp_Explorer) -> bool;
         pub fn Next(self: Pin<&mut TopExp_Explorer>);
-        pub fn ExplorerCurrentShape(explorer: &TopExp_Explorer) -> UniquePtr<TopoDS_Shape>;
-        pub fn Current(self: &TopExp_Explorer) -> &TopoDS_Shape;
+        pub fn ExplorerCurrentShape(explorer: &TopExp_Explorer) -> Result<UniquePtr<TopoDS_Shape>>;
+        pub fn Current(self: &TopExp_Explorer) -> Result<&TopoDS_Shape>;
 
         type TopExp;
         #[Self = "TopExp"]
@@ -33,35 +33,35 @@ mod inner {
             vertex_first: Pin<&mut TopoDS_Vertex>,
             vertex_last: Pin<&mut TopoDS_Vertex>,
             with_orientation: bool,
-        );
+        ) -> Result<()>;
         #[Self = "TopExp"]
         #[cxx_name = "Vertices"]
         pub fn TopExp_WireVertices(
             wire: &TopoDS_Wire,
             vertex_first: Pin<&mut TopoDS_Vertex>,
             vertex_last: Pin<&mut TopoDS_Vertex>,
-        );
-        pub fn TopExp_FirstVertex(edge: &TopoDS_Edge) -> UniquePtr<TopoDS_Vertex>;
-        pub fn TopExp_LastVertex(edge: &TopoDS_Edge) -> UniquePtr<TopoDS_Vertex>;
+        ) -> Result<()>;
+        pub fn TopExp_FirstVertex(edge: &TopoDS_Edge) -> Result<UniquePtr<TopoDS_Vertex>>;
+        pub fn TopExp_LastVertex(edge: &TopoDS_Edge) -> Result<UniquePtr<TopoDS_Vertex>>;
         #[Self = "TopExp"]
         pub fn CommonVertex(
             edge_1: &TopoDS_Edge,
             edge_2: &TopoDS_Edge,
             vertex: Pin<&mut TopoDS_Vertex>,
-        ) -> bool;
+        ) -> Result<bool>;
         #[Self = "TopExp"]
         pub fn MapShapes(
             shape: &TopoDS_Shape,
             shape_type: TopAbs_ShapeEnum,
             shape_map: Pin<&mut TopTools_IndexedMapOfShape>,
-        );
+        ) -> Result<()>;
         #[Self = "TopExp"]
         pub fn MapShapesAndAncestors(
             shape: &TopoDS_Shape,
             parent_type: TopAbs_ShapeEnum,
             child_type: TopAbs_ShapeEnum,
             shape_data_map: Pin<&mut TopTools_IndexedDataMapOfShapeListOfShape>,
-        );
+        ) -> Result<()>;
         #[Self = "TopExp"]
         pub fn MapShapesAndUniqueAncestors(
             shape: &TopoDS_Shape,
@@ -69,7 +69,7 @@ mod inner {
             child_type: TopAbs_ShapeEnum,
             shape_data_map: Pin<&mut TopTools_IndexedDataMapOfShapeListOfShape>,
             use_orientation: bool,
-        );
+        ) -> Result<()>;
     }
 }
 

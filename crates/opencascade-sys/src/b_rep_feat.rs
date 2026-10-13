@@ -18,13 +18,16 @@ mod inner {
             angle: f64,
             fuse: i32, // 0 = subtractive, 1 = additive
             modify: bool,
-        ) -> UniquePtr<BRepFeat_MakeDPrism>;
+        ) -> Result<UniquePtr<BRepFeat_MakeDPrism>>;
 
         #[cxx_name = "Perform"]
-        pub fn perform_until_face(self: Pin<&mut BRepFeat_MakeDPrism>, until: &TopoDS_Shape);
+        pub fn perform_until_face(
+            self: Pin<&mut BRepFeat_MakeDPrism>,
+            until: &TopoDS_Shape,
+        ) -> Result<()>;
         #[cxx_name = "Perform"]
-        pub fn perform_with_height(self: Pin<&mut BRepFeat_MakeDPrism>, height: f64);
-        pub fn Shape(self: Pin<&mut BRepFeat_MakeDPrism>) -> &TopoDS_Shape;
+        pub fn perform_with_height(self: Pin<&mut BRepFeat_MakeDPrism>, height: f64) -> Result<()>;
+        pub fn Shape(self: Pin<&mut BRepFeat_MakeDPrism>) -> Result<&TopoDS_Shape>;
 
         type BRepFeat_MakeCylindricalHole;
         #[cxx_name = "construct_unique"]
@@ -33,9 +36,9 @@ mod inner {
             self: Pin<&mut BRepFeat_MakeCylindricalHole>,
             shape: &TopoDS_Shape,
             axis: &gp_Ax1,
-        );
-        pub fn Perform(self: Pin<&mut BRepFeat_MakeCylindricalHole>, radius: f64);
-        pub fn Build(self: Pin<&mut BRepFeat_MakeCylindricalHole>);
-        pub fn Shape(self: &BRepFeat_MakeCylindricalHole) -> &TopoDS_Shape;
+        ) -> Result<()>;
+        pub fn Perform(self: Pin<&mut BRepFeat_MakeCylindricalHole>, radius: f64) -> Result<()>;
+        pub fn Build(self: Pin<&mut BRepFeat_MakeCylindricalHole>) -> Result<()>;
+        pub fn Shape(self: &BRepFeat_MakeCylindricalHole) -> Result<&TopoDS_Shape>;
     }
 }

@@ -27,7 +27,7 @@ mod inner {
         #[cxx_name = "construct_unique"]
         pub fn new_indexed_map_of_shape() -> UniquePtr<TopTools_IndexedMapOfShape>;
         pub fn Extent(self: &TopTools_IndexedMapOfShape) -> i32;
-        pub fn FindKey(self: &TopTools_IndexedMapOfShape, index: i32) -> &TopoDS_Shape;
+        pub fn FindKey(self: &TopTools_IndexedMapOfShape, index: i32) -> Result<&TopoDS_Shape>;
 
         type TopTools_IndexedDataMapOfShapeListOfShape;
         #[cxx_name = "construct_unique"]
@@ -37,11 +37,11 @@ mod inner {
         pub fn FindKey(
             self: &TopTools_IndexedDataMapOfShapeListOfShape,
             index: i32,
-        ) -> &TopoDS_Shape;
+        ) -> Result<&TopoDS_Shape>;
         pub fn FindFromIndex(
             self: &TopTools_IndexedDataMapOfShapeListOfShape,
             index: i32,
-        ) -> &TopTools_ListOfShape;
+        ) -> Result<&TopTools_ListOfShape>;
         pub fn FindIndex(
             self: &TopTools_IndexedDataMapOfShapeListOfShape,
             shape: &TopoDS_Shape,
@@ -49,7 +49,7 @@ mod inner {
         pub fn FindFromKey<'a>(
             self: &'a TopTools_IndexedDataMapOfShapeListOfShape,
             shape: &'a TopoDS_Shape,
-        ) -> &'a TopTools_ListOfShape;
+        ) -> Result<&'a TopTools_ListOfShape>;
 
         type TopTools_HSequenceOfShape;
         pub fn Length(self: &TopTools_HSequenceOfShape) -> i32;
@@ -58,13 +58,15 @@ mod inner {
         pub fn TopTools_HSequenceOfShape_append(
             handle: Pin<&mut Handle_TopTools_HSequenceOfShape>,
             shape: &TopoDS_Shape,
-        );
+        ) -> Result<()>;
 
-        pub fn TopTools_HSequenceOfShape_length(handle: &Handle_TopTools_HSequenceOfShape) -> i32;
+        pub fn TopTools_HSequenceOfShape_length(
+            handle: &Handle_TopTools_HSequenceOfShape,
+        ) -> Result<i32>;
         pub fn TopTools_HSequenceOfShape_value(
             handle: &Handle_TopTools_HSequenceOfShape,
             index: i32,
-        ) -> &TopoDS_Shape;
+        ) -> Result<&TopoDS_Shape>;
 
         #[cxx_name = "handle_try_deref"]
         pub fn HandleTopTools_HSequenceOfShape_Get(

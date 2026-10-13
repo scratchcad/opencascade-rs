@@ -10,15 +10,15 @@ mod inner {
 
         type GCPnts_TangentialDeflection;
         #[cxx_name = "construct_unique"]
-        fn TangentialDeflection_new(
+        pub fn TangentialDeflection_new(
             curve: &BRepAdaptor_Curve,
             angular_deflection: f64,
             curvature_deflection: f64,
-        ) -> UniquePtr<GCPnts_TangentialDeflection>;
-        fn NbPoints(self: &GCPnts_TangentialDeflection) -> i32;
-        fn GCPnts_TangentialDeflection_Value(
+        ) -> Result<UniquePtr<GCPnts_TangentialDeflection>>;
+        pub fn NbPoints(self: &GCPnts_TangentialDeflection) -> i32;
+        pub fn GCPnts_TangentialDeflection_Value(
             approximator: &GCPnts_TangentialDeflection,
             index: i32,
-        ) -> UniquePtr<gp_Pnt>;
+        ) -> Result<UniquePtr<gp_Pnt>>;
     }
 }

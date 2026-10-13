@@ -10,9 +10,9 @@ mod inner {
         // Describes a bounding box in 3D space.
         type Bnd_Box;
         #[cxx_name = "construct_unique"]
-        fn Bnd_Box_new() -> UniquePtr<Bnd_Box>;
-        fn IsVoid(self: &Bnd_Box) -> bool;
-        fn Get(
+        pub fn Bnd_Box_new() -> UniquePtr<Bnd_Box>;
+        pub fn IsVoid(self: &Bnd_Box) -> bool;
+        pub fn Get(
             self: &Bnd_Box,
             xMin: &mut f64,
             yMin: &mut f64,
@@ -20,11 +20,11 @@ mod inner {
             xMax: &mut f64,
             yMax: &mut f64,
             zMax: &mut f64,
-        );
-        fn Bnd_Box_CornerMin(b: &Bnd_Box) -> UniquePtr<gp_Pnt>;
-        fn Bnd_Box_CornerMax(b: &Bnd_Box) -> UniquePtr<gp_Pnt>;
-        fn GetGap(self: &Bnd_Box) -> f64;
-        fn Set(self: Pin<&mut Bnd_Box>, p: &gp_Pnt);
-        fn SetGap(self: Pin<&mut Bnd_Box>, gap: f64);
+        ) -> Result<()>;
+        pub fn Bnd_Box_CornerMin(b: &Bnd_Box) -> Result<UniquePtr<gp_Pnt>>;
+        pub fn Bnd_Box_CornerMax(b: &Bnd_Box) -> Result<UniquePtr<gp_Pnt>>;
+        pub fn GetGap(self: &Bnd_Box) -> f64;
+        pub fn Set(self: Pin<&mut Bnd_Box>, p: &gp_Pnt) -> Result<()>;
+        pub fn SetGap(self: Pin<&mut Bnd_Box>, gap: f64);
     }
 }

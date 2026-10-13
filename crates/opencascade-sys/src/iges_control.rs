@@ -15,12 +15,12 @@ mod inner {
         pub fn read_iges(
             reader: Pin<&mut IGESControl_Reader>,
             filename: String,
-        ) -> IFSelect_ReturnStatus;
+        ) -> Result<IFSelect_ReturnStatus>;
         pub fn TransferRoots(
             self: Pin<&mut IGESControl_Reader>,
             progress: &Message_ProgressRange,
-        ) -> i32;
-        pub fn one_shape_iges(reader: &IGESControl_Reader) -> UniquePtr<TopoDS_Shape>;
+        ) -> Result<i32>;
+        pub fn one_shape_iges(reader: &IGESControl_Reader) -> Result<UniquePtr<TopoDS_Shape>>;
 
         type IGESControl_Writer;
         #[cxx_name = "construct_unique"]
@@ -29,8 +29,8 @@ mod inner {
             self: Pin<&mut IGESControl_Writer>,
             shape: &TopoDS_Shape,
             progress: &Message_ProgressRange,
-        ) -> bool;
-        pub fn ComputeModel(self: Pin<&mut IGESControl_Writer>);
-        pub fn write_iges(writer: Pin<&mut IGESControl_Writer>, filename: String) -> bool;
+        ) -> Result<bool>;
+        pub fn ComputeModel(self: Pin<&mut IGESControl_Writer>) -> Result<()>;
+        pub fn write_iges(writer: Pin<&mut IGESControl_Writer>, filename: String) -> Result<bool>;
     }
 }
