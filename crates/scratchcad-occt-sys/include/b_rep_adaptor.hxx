@@ -1,3 +1,6 @@
+// Modified by Joaquim Dalton-Pereira, 2026-10-13. Based on opencascade-rs
+// (https://github.com/bschwind/opencascade-rs); later changes are in the git history.
+
 #include <BRepAdaptor_Curve.hxx>
 #include <BRepAdaptor_Surface.hxx>
 #include <Standard_NoSuchObject.hxx>

@@ -1,3 +1,6 @@
+// Modified by Joaquim Dalton-Pereira, 2026-10-13. Based on opencascade-rs
+// (https://github.com/bschwind/opencascade-rs); later changes are in the git history.
+
 #include <GCE2d_MakeSegment.hxx>
 #include <GC_MakeArcOfCircle.hxx>
 #include <GC_MakeSegment.hxx>

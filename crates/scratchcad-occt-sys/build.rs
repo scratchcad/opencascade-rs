@@ -1,3 +1,6 @@
+// Modified by Joaquim Dalton-Pereira, 2026-10-13. Based on opencascade-rs
+// (https://github.com/bschwind/opencascade-rs); later changes are in the git history.
+
 /// Minimum compatible version of OpenCASCADE library (major, minor)
 ///
 /// Pre-installed OpenCASCADE library will be checked for compatibility using semver rules.

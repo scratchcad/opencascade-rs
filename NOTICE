@@ -1,76 +1,8 @@
 scratchcad-occt-rs
 Copyright (C) 2026 Joaquim Dalton-Pereira
 
-This project is free software, licensed under the GNU Lesser General Public
-License version 2.1 only (LGPL-2.1-only). The full license text is in the
-LICENSE file.
+Based on opencascade-rs (https://github.com/bschwind/opencascade-rs)
+Copyright (C) 2022-2026 Brian Schwind and the opencascade-rs contributors
 
-
-Upstream project
-----------------
-
-This project is a modified version of opencascade-rs:
-
-    https://github.com/bschwind/opencascade-rs
-    forked at commit 32758df23a137f4e7c786c618b0317fc3badb3b2 (2026-08-24)
-
-    Copyright (C) 2022-2026 Brian Schwind and the opencascade-rs contributors
-    Licensed under the GNU Lesser General Public License version 2.1
-
-opencascade-rs contributors, as recorded in its git history:
-
-    Brian Schwind, Dominick, Gal Buki, Greg Morenz, John Whittington,
-    Julian Schuler, Kayo Phoenix, Matěj Laitl, Michael Schubart,
-    Máté Kovács, PabloMansanet, Ryo Kawaguchi, Satoshi Misumi,
-    Tyler Kvochick, Ykong, fidoriel
-
-
-Changes from the upstream project
----------------------------------
-
-As required by section 2(a) of the LGPL-2.1, this section states which files
-were changed and when. Changes were made by Joaquim Dalton-Pereira starting on
-2026-10-13; the git history records each change and its date.
-
-Derived from upstream and modified:
-
-  - crates/scratchcad-occt-sys/
-      Renamed from opencascade-sys. The files in src/ and include/, build.rs
-      and OCCT/CMakeLists.txt come from upstream. C++ exceptions are now
-      translated into Rust Results, null handles are checked, and bindings
-      were added for more OpenCASCADE packages. Some files in include/ and
-      OCCT/CMakeLists.txt are unchanged from upstream.
-  - Cargo.toml, Cargo.lock, rustfmt.toml, README.md
-  - .github/workflows/
-
-Copied from upstream unchanged: .clang-format, .gitignore and LICENSE.
-
-New in this project:
-
-  - crates/scratchcad-occt-rhai/ (the Rhai scripting API and occt-rhai tool)
-  - crates/scratchcad-occt-sys/README.md and crates/scratchcad-occt-sys/tests/
-  - docs/rhai-api.md
-  - .github/actions/ and .github/dependabot.yml
-  - Any file under crates/scratchcad-occt-sys/src/ or include/ that has no
-    counterpart in upstream opencascade-sys
-
-Removed from upstream: the opencascade, occt-sys, model-api, viewer,
-kicad-parser and wasm-example crates, the examples, CHANGELOG.md and the
-upstream docs.
-
-
-Third-party software
---------------------
-
-This repository does not include source code from the following projects. They
-are downloaded by Cargo at build time and each one carries its own license.
-
-  - OpenCASCADE Technology (https://dev.opencascade.org)
-      LGPL-2.1 with the Open CASCADE Exception. Built from source by the
-      occt-sys crate when the `builtin` feature is enabled, or linked from a
-      system installation.
-  - Rust crates listed in Cargo.lock, such as cxx, rhai, glam and thiserror,
-    which are mostly licensed under MIT and/or Apache-2.0.
-
-Binaries built from this project include OpenCASCADE and these crates, so
-anyone who distributes such a binary must also include their license texts.
+Licensed under the GNU Lesser General Public License version 2.1 only. See LICENSE.
+Files changed from opencascade-rs say so in a comment at the top.
