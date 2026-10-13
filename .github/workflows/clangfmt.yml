@@ -6,13 +6,18 @@ on:
 
 name: Clang Format
 
+permissions:
+  contents: read
+
 jobs:
   fmt:
     name: Clang Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: jidicula/clang-format-action@v4.9.0
         with:
           clang-format-version: '14'
-          check-path: crates/opencascade-sys/include
+          check-path: crates/scratchcad-occt-sys/include
