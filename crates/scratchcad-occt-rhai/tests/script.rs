@@ -296,6 +296,7 @@ fn transforms() {
         1e-9,
     );
     assert_vec_close(run::<DVec3>("box(2, 2, 2).mirror(\"Y\").center()"), v(1.0, -1.0, 1.0), 1e-9);
+    assert_vec_close(run::<DVec3>("box(2, 2, 2).mirror(\"-Z\").center()"), v(1.0, 1.0, -1.0), 1e-9);
     assert_vec_close(
         run::<DVec3>("box(2, 2, 2).mirror([1, 0, 0]).center()"),
         v(-1.0, 1.0, 1.0),
@@ -318,6 +319,7 @@ fn transforms() {
     fails("box(1, 1, 1).rotate([0, 0, 0], \"Z\", \"x\")", "angle must be a number");
     fails("box(1, 1, 1).mirror([0, 0, 0], [0, 0, 0])", "direction must be a non-zero vector");
     fails("box(1, 1, 1).mirror(42)", "mirror normal must be a vec3");
+    fails("box(1, 1, 1).mirror(\"up\")", "unknown direction");
 }
 
 #[test]

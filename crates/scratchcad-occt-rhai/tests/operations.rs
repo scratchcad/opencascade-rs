@@ -43,6 +43,7 @@ fn transforms() {
     assert_vec_close(around_point.center().unwrap(), DVec3::ONE, 1e-9);
     err_contains(cube.rotate(DVec3::ZERO, DVec3::ZERO, 90.0), "non-zero");
     err_contains(cube.rotate(DVec3::ZERO, DVec3::Z, f64::INFINITY), "rotation angle");
+    err_contains(cube.rotate(v(f64::INFINITY, 0.0, 0.0), DVec3::Z, 90.0), "axis origin");
 
     let scaled = cube.scale(DVec3::ZERO, 2.0).unwrap();
     assert_close(scaled.volume().unwrap(), 64.0, 1e-9);

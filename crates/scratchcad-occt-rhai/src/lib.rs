@@ -4,7 +4,7 @@
 //!
 //! * A Rust API built around cheap-to-clone, immutable handle types ([`Shape`], [`Selection`],
 //!   [`Sketch`], [`Plane`]) whose operations all return [`Result`] and chain naturally.
-//! * [`register`], which exposes that API to a Rhai [`Engine`](rhai::Engine) with
+//! * [`register`], which exposes that API to a Rhai [`Engine`] with
 //!   script-friendly argument conversions.
 //!
 //! ```no_run

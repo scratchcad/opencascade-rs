@@ -32,6 +32,13 @@ const OCCT_LIBS: &[&str] = &[
 ];
 
 fn main() {
+    // docs.rs has neither OpenCASCADE nor the time to build it, and rustdoc does not link, so
+    // skip the native build there.
+    println!("cargo:rerun-if-env-changed=DOCS_RS");
+    if std::env::var_os("DOCS_RS").is_some() {
+        return;
+    }
+
     let target = std::env::var("TARGET").expect("No TARGET environment variable defined");
     let is_windows = target.to_lowercase().contains("windows");
     let is_windows_gnu = target.to_lowercase().contains("windows-gnu");

@@ -114,7 +114,7 @@ impl Shape {
         })
     }
 
-    /// Meshes the shape with the given tolerance and writes a binary STL file.
+    /// Meshes the shape with the given tolerance and writes an ASCII STL file.
     pub fn write_stl(&self, path: impl AsRef<Path>, tolerance: f64) -> Result<()> {
         let path = path.as_ref();
         require_positive(tolerance, "STL tolerance")?;

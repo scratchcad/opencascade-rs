@@ -24,12 +24,20 @@ pub(crate) fn direction(d: DVec3) -> Result<UniquePtr<ffi::gp::gp_Dir>> {
     Ok(ffi::gp::gp_Dir_new(d.x, d.y, d.z)?)
 }
 
+/// Like [`point`], but rejects NaN and infinite coordinates, which OCCT would accept silently.
+fn finite_point(p: DVec3, what: &str) -> Result<UniquePtr<ffi::gp::gp_Pnt>> {
+    if !p.is_finite() {
+        return Err(invalid(format!("{what} must be finite, got {}", fmt_vec(p))));
+    }
+    Ok(point(p))
+}
+
 pub(crate) fn axis1(origin: DVec3, dir: DVec3) -> Result<UniquePtr<ffi::gp::gp_Ax1>> {
-    Ok(ffi::gp::gp_Ax1_new(&point(origin), &*direction(dir)?))
+    Ok(ffi::gp::gp_Ax1_new(&*finite_point(origin, "axis origin")?, &*direction(dir)?))
 }
 
 pub(crate) fn axis2(origin: DVec3, normal: DVec3) -> Result<UniquePtr<ffi::gp::gp_Ax2>> {
-    Ok(ffi::gp::gp_Ax2_new(&point(origin), &*direction(normal)?))
+    Ok(ffi::gp::gp_Ax2_new(&*finite_point(origin, "axis origin")?, &*direction(normal)?))
 }
 
 pub(crate) fn from_pnt(p: &ffi::gp::gp_Pnt) -> DVec3 {
@@ -209,7 +217,7 @@ impl Plane {
 
     pub(crate) fn to_ax2(self) -> Result<UniquePtr<ffi::gp::gp_Ax2>> {
         Ok(ffi::gp::gp_Ax2_new_with_x_dir(
-            &point(self.origin),
+            &*finite_point(self.origin, "plane origin")?,
             &*direction(self.normal)?,
             &*direction(self.x_dir)?,
         )?)

@@ -467,12 +467,10 @@ fn register_shape(engine: &mut Engine) {
             Ok(s.scale(vector(&c, "center")?, number(&f, "scale factor")?)?)
         })
         .register_fn("mirror", |s: &mut Shape, p: Dynamic| -> RhaiResult<Shape> {
-            // A plane (or plane name) mirrors through that plane; a direction mirrors through
-            // the plane through the origin with that normal.
-            let is_plane_name = p.is_string()
-                && p.clone().into_string().map(|n| n.trim().len() == 2).unwrap_or(false);
-            if p.is::<Plane>() || is_plane_name {
-                let pl = plane(&p)?;
+            // A plane (or plane name) mirrors through that plane; a direction (including axis
+            // names like "-Z") mirrors through the plane through the origin with that normal.
+            let named = p.clone().into_string().ok().and_then(|n| Plane::named(&n).ok());
+            if let Some(pl) = p.clone().try_cast::<Plane>().or(named) {
                 Ok(s.mirror(pl.origin(), pl.normal())?)
             } else {
                 Ok(s.mirror(DVec3::ZERO, direction(&p, "mirror normal")?)?)

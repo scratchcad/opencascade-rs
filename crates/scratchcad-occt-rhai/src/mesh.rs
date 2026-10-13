@@ -30,8 +30,10 @@ impl Mesh {
     /// The corners of every triangle.
     pub fn triangles(&self) -> impl Iterator<Item = [DVec3; 3]> + '_ {
         self.indices
-            .chunks_exact(3)
-            .map(|t| [self.vertices[t[0]], self.vertices[t[1]], self.vertices[t[2]]])
+            .as_chunks::<3>()
+            .0
+            .iter()
+            .map(|&[a, b, c]| [self.vertices[a], self.vertices[b], self.vertices[c]])
     }
 
     /// The total area of all triangles.

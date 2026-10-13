@@ -50,6 +50,9 @@ fn round_primitives() {
     let moved = Shape::sphere_at(v(5.0, 0.0, 0.0), 1.0).unwrap();
     assert_vec_close(moved.center().unwrap(), v(5.0, 0.0, 0.0), 1e-6);
     err_contains(Shape::sphere(-1.0), "sphere radius");
+    err_contains(Shape::sphere_at(v(f64::NAN, 0.0, 0.0), 1.0), "axis origin must be finite");
+    let far_plane = Plane::xy().offset(f64::INFINITY);
+    err_contains(Shape::circle_on(&far_plane, 1.0), "plane origin must be finite");
 
     assert_close(Shape::cone(1.0, 0.0, 3.0).unwrap().volume().unwrap(), PI, 1e-6);
     assert_close(Shape::cone(2.0, 1.0, 3.0).unwrap().volume().unwrap(), 7.0 * PI, 1e-6);
