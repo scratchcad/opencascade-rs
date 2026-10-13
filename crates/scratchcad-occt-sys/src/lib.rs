@@ -1,15 +1,10 @@
 //! Low-level [cxx](https://cxx.rs) bindings to the OpenCASCADE CAD kernel.
 //!
-//! This is a fork of the `opencascade-sys` crate from
-//! [opencascade-rs](https://github.com/bschwind/opencascade-rs) with two main changes:
-//!
-//! * **Exception handling.** Every binding that can throw a C++ exception returns
-//!   `Result<T, cxx::Exception>`. OpenCASCADE's `Standard_Failure` hierarchy (which does not
-//!   derive from `std::exception`) is translated by a custom `rust::behavior::trycatch` in
-//!   `include/bindings_common.hxx`; the error message is `"<exception type>: <message>"`.
-//!   Without this, any OCCT error would abort the whole process.
-//! * **Additional bindings** used by `scratchcad-occt-rhai`, e.g. [`b_rep_check`],
-//!   [`b_rep_extrema`], `BRepAdaptor_Surface`, plane mirroring and `BRep_Tool::IsClosed`.
+//! Every binding that can throw a C++ exception returns `Result<T, cxx::Exception>`.
+//! OpenCASCADE's `Standard_Failure` hierarchy (which does not derive from `std::exception`) is
+//! translated by a custom `rust::behavior::trycatch` in `include/bindings_common.hxx`; the error
+//! message is `"<exception type>: <message>"`. Without this, any OCCT error would abort the whole
+//! process.
 //!
 //! Module names mirror OCCT package names in snake case (`BRepPrimAPI` -> [`b_rep_prim_api`]).
 

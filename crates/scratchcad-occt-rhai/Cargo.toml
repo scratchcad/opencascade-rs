@@ -4,7 +4,7 @@ description = "Script the OpenCASCADE CAD kernel with Rhai"
 license = "LGPL-2.1"
 version = "0.1.0"
 edition = "2021"
-repository = "https://github.com/scratchcad/opencascade-rs"
+repository = "https://github.com/scratchcad/scratchcad-occt-rs"
 
 [dependencies]
 cxx = "1"

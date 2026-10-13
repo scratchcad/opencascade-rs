@@ -28,7 +28,7 @@ wrote plate.step
 | crate | what it is |
 |-------|------------|
 | [`occt-sys`](https://crates.io/crates/occt-sys) | Used unchanged from crates.io (`=7.8.1`): builds OpenCASCADE 7.8.1 from source as static libraries. |
-| [`crates/scratchcad-occt-sys`](crates/scratchcad-occt-sys) | A fork of upstream `opencascade-sys` (cxx bindings) that adds C++ exception handling and the bindings the Rhai layer needs. |
+| [`crates/scratchcad-occt-sys`](crates/scratchcad-occt-sys) | A fork of [`opencascade-sys`](https://github.com/bschwind/opencascade-rs) (cxx bindings) that adds C++ exception handling and the bindings the Rhai layer needs. |
 | [`crates/scratchcad-occt-rhai`](crates/scratchcad-occt-rhai) | The high-level crate, designed around Rhai: cheap-to-clone handles, `Result`-returning methods, chainable calls and selectors. Includes the `occt-rhai` command line tool. |
 
 ### Exception handling in `scratchcad-occt-sys`
