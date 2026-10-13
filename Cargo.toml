@@ -1,10 +1,10 @@
 [workspace]
-members = ["crates/opencascade-sys", "crates/opencascade-rhai"]
+members = ["crates/scratchcad-occt-sys", "crates/scratchcad-occt-rhai"]
 resolver = "2"
 
-# `occt-sys` is a build dependency of `opencascade-sys`, but the static libraries it compiles end up
-# in the final binaries. Build it optimized and without debug info in every profile so tests run at
-# a reasonable speed and the static archives stay small.
+# `occt-sys` is a build dependency of `scratchcad-occt-sys`, but the static libraries it compiles
+# end up in the final binaries. Build it optimized and without debug info in every profile so tests
+# run at a reasonable speed and the static archives stay small.
 [profile.dev.package.occt-sys]
 opt-level = 3
 debug = false

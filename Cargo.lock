@@ -364,28 +364,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "opencascade-rhai"
-version = "0.1.0"
-dependencies = [
- "cxx",
- "glam",
- "opencascade-sys",
- "rhai",
- "tempfile",
- "thiserror",
-]
-
-[[package]]
-name = "opencascade-sys"
-version = "0.4.0"
-dependencies = [
- "cmake",
- "cxx",
- "cxx-build",
- "occt-sys",
-]
-
-[[package]]
 name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -479,6 +457,28 @@ name = "scratch"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d68f2ec51b097e4c1a75b681a8bec621909b5e91f15bb7b840c4f2f7b01148b2"
+
+[[package]]
+name = "scratchcad-occt-rhai"
+version = "0.1.0"
+dependencies = [
+ "cxx",
+ "glam",
+ "rhai",
+ "scratchcad-occt-sys",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
+name = "scratchcad-occt-sys"
+version = "0.1.0"
+dependencies = [
+ "cmake",
+ "cxx",
+ "cxx-build",
+ "occt-sys",
+]
 
 [[package]]
 name = "serde"

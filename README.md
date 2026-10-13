@@ -1,4 +1,4 @@
-# opencascade-rhai
+# scratchcad-occt-rhai
 
 Script the [OpenCASCADE](https://dev.opencascade.org) CAD kernel with [Rhai](https://rhai.rs).
 
@@ -28,17 +28,17 @@ wrote plate.step
 | crate | what it is |
 |-------|------------|
 | [`occt-sys`](https://crates.io/crates/occt-sys) | Used unchanged from crates.io (`=7.8.1`): builds OpenCASCADE 7.8.1 from source as static libraries. |
-| [`crates/opencascade-sys`](crates/opencascade-sys) | A fork of `opencascade-sys` (cxx bindings) that adds C++ exception handling and the bindings the Rhai layer needs. |
-| [`crates/opencascade-rhai`](crates/opencascade-rhai) | The high-level crate, designed around Rhai: cheap-to-clone handles, `Result`-returning methods, chainable calls and selectors. Includes the `occt-rhai` command line tool. |
+| [`crates/scratchcad-occt-sys`](crates/scratchcad-occt-sys) | A fork of upstream `opencascade-sys` (cxx bindings) that adds C++ exception handling and the bindings the Rhai layer needs. |
+| [`crates/scratchcad-occt-rhai`](crates/scratchcad-occt-rhai) | The high-level crate, designed around Rhai: cheap-to-clone handles, `Result`-returning methods, chainable calls and selectors. Includes the `occt-rhai` command line tool. |
 
-### Exception handling in `opencascade-sys`
+### Exception handling in `scratchcad-occt-sys`
 
 OpenCASCADE reports errors by throwing subclasses of `Standard_Failure`, which do not derive from
 `std::exception`. cxx only catches `std::exception`, so in the upstream bindings any OCCT error
 escapes through the FFI boundary and aborts the process.
 
 The fork installs a custom `rust::behavior::trycatch` (in
-[`include/bindings_common.hxx`](crates/opencascade-sys/include/bindings_common.hxx)) that catches
+[`include/bindings_common.hxx`](crates/scratchcad-occt-sys/include/bindings_common.hxx)) that catches
 `Standard_Failure`, `std::exception` and anything else, and every binding that can throw returns
 `Result<T, cxx::Exception>`. The error message is `"<OCCT exception type>: <message>"`, for example
 `Standard_ConstructionError: gp_Dir() - input vector has zero norm`.
@@ -52,8 +52,8 @@ that dereference OCCT handles throw `Standard_NullObject` instead of dereferenci
 
 ## The Rhai API
 
-`opencascade_rhai::engine()` returns a Rhai `Engine` with everything registered;
-`opencascade_rhai::register(&mut engine)` adds it to an engine of your own. `eval_shape(script)`
+`scratchcad_occt_rhai::engine()` returns a Rhai `Engine` with everything registered;
+`scratchcad_occt_rhai::register(&mut engine)` adds it to an engine of your own. `eval_shape(script)`
 runs a script and converts its result to a `Shape`.
 
 ### Conventions
@@ -149,7 +149,7 @@ let hole = circle(block.top_face().plane(), 4).extrude(-10);
 block - hole
 ```
 
-More examples live in [`crates/opencascade-rhai/examples`](crates/opencascade-rhai/examples);
+More examples live in [`crates/scratchcad-occt-rhai/examples`](crates/scratchcad-occt-rhai/examples);
 the test suite runs every one of them.
 
 ### Using it from Rust
@@ -157,9 +157,9 @@ the test suite runs every one of them.
 The Rhai layer is a thin wrapper over a Rust API with the same shape, which you can use directly:
 
 ```rust
-use opencascade_rhai::{DVec3, Shape};
+use scratchcad_occt_rhai::{DVec3, Shape};
 
-fn main() -> Result<(), opencascade_rhai::Error> {
+fn main() -> Result<(), scratchcad_occt_rhai::Error> {
     let plate = Shape::make_box(40.0, 30.0, 5.0)?;
     let vertical_edges = plate.edges().select("|Z")?;
     let hole = Shape::cylinder(4.0, 5.0)?.translate(DVec3::new(20.0, 15.0, 0.0))?;
@@ -183,9 +183,9 @@ All tests use the real OpenCASCADE libraries; nothing is mocked.
 cargo test --workspace
 ```
 
-* `crates/opencascade-sys/tests` exercise every binding module, including the exception
+* `crates/scratchcad-occt-sys/tests` exercise every binding module, including the exception
   translation (each `Standard_Failure` subtype that the bindings document), from multiple threads.
-* `crates/opencascade-rhai/tests` cover the Rust API (primitives, operations, selections,
+* `crates/scratchcad-occt-rhai/tests` cover the Rust API (primitives, operations, selections,
   sketches, meshes, file I/O), every function registered with Rhai through real scripts, the CLI
   (in-process and as a subprocess) and the bundled example scripts.
 
@@ -194,7 +194,7 @@ Coverage (reusing the OpenCASCADE build so it is not compiled a second time):
 ```sh
 cargo install cargo-llvm-cov
 DEP_OCCT_ROOT=$PWD/target/OCCT cargo llvm-cov --no-default-features \
-    -p opencascade-rhai -p opencascade-sys --summary-only --show-missing-lines
+    -p scratchcad-occt-rhai -p scratchcad-occt-sys --summary-only --show-missing-lines
 ```
 
 CI fails if line coverage drops below 95%. At the time of writing it is about 99% of lines and

@@ -15,4 +15,4 @@ jobs:
       - uses: jidicula/clang-format-action@v4.9.0
         with:
           clang-format-version: '14'
-          check-path: crates/opencascade-sys/include
+          check-path: crates/scratchcad-occt-sys/include

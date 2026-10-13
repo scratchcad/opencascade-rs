@@ -28,5 +28,5 @@ jobs:
         env:
           DEP_OCCT_ROOT: ${{ github.workspace }}/target/OCCT
         run: >
-          cargo llvm-cov --no-default-features -p opencascade-rhai -p opencascade-sys
+          cargo llvm-cov --no-default-features -p scratchcad-occt-rhai -p scratchcad-occt-sys
           --summary-only --show-missing-lines --fail-under-lines 95

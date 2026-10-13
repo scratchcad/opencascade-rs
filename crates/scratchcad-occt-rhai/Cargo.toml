@@ -1,0 +1,22 @@
+[package]
+name = "scratchcad-occt-rhai"
+description = "Script the OpenCASCADE CAD kernel with Rhai"
+license = "LGPL-2.1"
+version = "0.1.0"
+edition = "2021"
+repository = "https://github.com/scratchcad/opencascade-rs"
+
+[dependencies]
+cxx = "1"
+glam = "0.30"
+scratchcad-occt-sys = { version = "0.1", path = "../scratchcad-occt-sys" }
+rhai = "1.26"
+thiserror = "2"
+
+[dev-dependencies]
+tempfile = "3"
+
+[features]
+default = ["builtin"]
+# Build OpenCASCADE from source (via `occt-sys`) instead of using a system installation.
+builtin = ["scratchcad-occt-sys/builtin"]

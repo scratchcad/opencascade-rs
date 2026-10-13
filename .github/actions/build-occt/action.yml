@@ -31,7 +31,7 @@ runs:
     # On a cache hit this only re-checks the restored build and compiles the bindings.
     - name: Build OpenCASCADE
       shell: bash
-      run: cargo build -p opencascade-sys --features builtin
+      run: cargo build -p scratchcad-occt-sys --features builtin
 
     # Saved immediately rather than at the end of the job, so a later failing step does not
     # throw the (slow) build away.
