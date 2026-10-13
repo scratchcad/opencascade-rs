@@ -14,10 +14,10 @@ jobs:
     name: Clang Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: jidicula/clang-format-action@v4.9.0
+      - uses: jidicula/clang-format-action@v4.18.0
         with:
           clang-format-version: '14'
           check-path: crates/scratchcad-occt-sys/include
