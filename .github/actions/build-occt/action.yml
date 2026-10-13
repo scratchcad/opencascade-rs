@@ -1,0 +1,43 @@
+name: Build OpenCASCADE
+description: >
+  Restores the static OpenCASCADE build (target/OCCT) from the cache, or builds it and saves it
+  to the cache right away.
+
+runs:
+  using: composite
+  steps:
+    - name: Compute the cache key
+      id: key
+      shell: bash
+      run: |
+        meta=$(cargo metadata --format-version 1)
+        manifest=$(jq -r '.packages[] | select(.name == "occt-sys") | .manifest_path' <<< "$meta")
+        version=$(jq -r '.packages[] | select(.name == "occt-sys") | .version' <<< "$meta")
+        # CMake records absolute source paths, so a restored build is only reusable while Cargo
+        # extracts occt-sys to the same directory (its registry directory name can change between
+        # Cargo releases).
+        source_dir=$(dirname "$manifest" | sha256sum | cut -c1-16)
+        # The root manifest holds the occt-sys build profile.
+        profile=$(sha256sum Cargo.toml | cut -c1-16)
+        echo "key=occt-$RUNNER_OS-$version-$source_dir-$profile" >> "$GITHUB_OUTPUT"
+
+    - name: Restore OpenCASCADE
+      id: restore
+      uses: actions/cache/restore@v4
+      with:
+        path: target/OCCT
+        key: ${{ steps.key.outputs.key }}
+
+    # On a cache hit this only re-checks the restored build and compiles the bindings.
+    - name: Build OpenCASCADE
+      shell: bash
+      run: cargo build -p opencascade-sys --features builtin
+
+    # Saved immediately rather than at the end of the job, so a later failing step does not
+    # throw the (slow) build away.
+    - name: Save OpenCASCADE
+      if: steps.restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: target/OCCT
+        key: ${{ steps.key.outputs.key }}

@@ -19,11 +19,7 @@ jobs:
       - name: Cache Rust Dependencies
         uses: Swatinem/rust-cache@v2
       # The static OpenCASCADE build (from the `occt-sys` crate) takes the bulk of the build time.
-      - name: Cache OpenCASCADE
-        uses: actions/cache@v4
-        with:
-          path: target/OCCT
-          key: occt-7.8.1-${{ runner.os }}-${{ hashFiles('Cargo.toml') }}
+      - uses: ./.github/actions/build-occt
       - run: cargo test --workspace --all-targets
       - uses: taiki-e/install-action@cargo-llvm-cov
       # Coverage reuses the OpenCASCADE installation built above instead of building it again
