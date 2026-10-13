@@ -1,3 +1,6 @@
+// Modified by Joaquim Dalton-Pereira, 2026-10-13. Based on opencascade-rs
+// (https://github.com/bschwind/opencascade-rs); later changes are in the git history.
+
 //! Low-level [cxx](https://cxx.rs) bindings to the OpenCASCADE CAD kernel.
 //!
 //! Every binding that can throw a C++ exception returns `Result<T, cxx::Exception>`.

@@ -1,0 +1,8 @@
+scratchcad-occt-rs
+Copyright (C) 2026 Joaquim Dalton-Pereira
+
+Based on opencascade-rs (https://github.com/bschwind/opencascade-rs)
+Copyright (C) 2022-2026 Brian Schwind and the opencascade-rs contributors
+
+Licensed under the GNU Lesser General Public License version 2.1 only. See LICENSE.
+Files changed from opencascade-rs say so in a comment at the top.

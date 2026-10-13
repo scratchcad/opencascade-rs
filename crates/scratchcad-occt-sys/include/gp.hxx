@@ -1,3 +1,6 @@
+// Modified by Joaquim Dalton-Pereira, 2026-10-13. Based on opencascade-rs
+// (https://github.com/bschwind/opencascade-rs); later changes are in the git history.
+
 #include <bindings_common.hxx>
 #include <gp.hxx>
 #include <gp_Ax2.hxx>
