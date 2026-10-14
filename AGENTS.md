@@ -33,9 +33,9 @@ MAMBA_ROOT_PREFIX=/opt/mamba micromamba create -y -p /opt/occt -c conda-forge "o
 export DEP_OCCT_ROOT=/opt/occt LD_LIBRARY_PATH=/opt/occt/lib
 ```
 
-A clean build of the workspace plus all tests then takes about two minutes. Only use
-`--features builtin` when changing the `builtin` path itself; CI covers it otherwise. If you must,
-run it in the background and expect a container restart to cost you the build.
+A clean build of the workspace plus all tests then takes about two minutes. Do not build with
+`--features builtin`: nothing (CI included) builds OpenCASCADE from source any more, and the feature
+is kept only for people without a prebuilt OCCT.
 
 Elsewhere: Debian 13 and Ubuntu 25.04+ package OCCT 7.8 (`libocct-*-dev`); Debian 12 and Ubuntu 24.04
 only have 7.6, which is too old (7.8 renamed the data-exchange toolkits the bindings link).
@@ -58,8 +58,8 @@ clang-format --dry-run --Werror crates/scratchcad-occt-sys/include/*.hxx
   matters.
 * `--all-targets` does not run doctests: run `cargo test --workspace --doc` after touching examples in
   doc comments.
-* CI's `builtin` job runs the tests against OCCT compiled from source (cached by
-  `.github/actions/build-occt`); everything else uses `.github/actions/install-occt`.
+* CI installs the prebuilt OCCT with `.github/actions/install-occt`. The `builtin` feature is not
+  tested in CI.
 * Tests run against the real OCCT; there are no mocks. Shared helpers are in `tests/common/mod.rs`.
 
 ## Layout

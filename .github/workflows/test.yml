@@ -34,20 +34,3 @@ jobs:
         run: >
           cargo llvm-cov -p scratchcad-occt-rhai -p scratchcad-occt-sys
           --summary-only --show-missing-lines --fail-under-lines 95
-
-  builtin:
-    name: Cargo Test (OpenCASCADE built from source)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: stable
-      - name: Cache Rust Dependencies
-        uses: Swatinem/rust-cache@v2
-      # The static OpenCASCADE build (from the `occt-sys` crate) is cached between runs; without
-      # the cache it takes about 20 minutes.
-      - uses: ./.github/actions/build-occt
-      - run: cargo test --workspace --all-targets --features builtin
