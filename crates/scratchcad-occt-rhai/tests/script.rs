@@ -638,3 +638,20 @@ fn point_queries_and_mesh_options_in_scripts() {
     fails("box(1, 1, 1).mesh(0.1, \"fine\")", "angular tolerance must be a number");
     assert_eq!(run::<INT>("box(1, 1, 1).mesh(0.1).welded().vertex_count"), 8);
 }
+
+#[test]
+fn bundled_examples_run() {
+    let examples = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("examples");
+    let mut count = 0;
+    for entry in std::fs::read_dir(&examples).unwrap() {
+        let path = entry.unwrap().path();
+        if path.extension().is_some_and(|e| e == "rhai") {
+            let source = std::fs::read_to_string(&path).unwrap();
+            let shape = eval_shape(&source).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+            assert!(shape.is_valid(), "{} produced an invalid shape", path.display());
+            assert!(shape.volume().unwrap() > 0.0, "{}", path.display());
+            count += 1;
+        }
+    }
+    assert!(count >= 4);
+}

@@ -7,7 +7,7 @@ edition = "2021"
 repository = "https://github.com/scratchcad/scratchcad-occt-rs"
 readme = "../../README.md"
 keywords = ["cad", "opencascade", "rhai", "scripting", "step"]
-categories = ["graphics", "science", "command-line-utilities"]
+categories = ["graphics", "science"]
 
 [dependencies]
 cxx = "1"

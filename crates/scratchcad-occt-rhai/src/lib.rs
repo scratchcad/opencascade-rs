@@ -51,7 +51,6 @@
 //! ```
 
 pub mod cancel;
-pub mod cli;
 mod error;
 mod io;
 pub mod math;

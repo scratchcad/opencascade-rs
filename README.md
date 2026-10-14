@@ -16,36 +16,22 @@ for x in [-1, 1] {
 plate.chamfer(0.8, ">Z")
 ```
 
-```console
-$ occt-rhai mounting_plate.rhai -o plate.step
-Shape(solid, 26 faces, 60 edges, 36 vertices)
-BoundingBox(min: (-40, -25, -3), max: (40, 25, 3.000000000000002))
-volume: 23297.832215
-wrote plate.step
+```rust
+let plate = scratchcad_occt_rhai::eval_shape(&std::fs::read_to_string("mounting_plate.rhai")?)?;
+plate.write_step("plate.step")?;
 ```
 
 ## Crates
 
 | crate | what it is |
 |-------|------------|
-| [`scratchcad-occt-rhai`](https://github.com/scratchcad/scratchcad-occt-rs/tree/main/crates/scratchcad-occt-rhai) | The Rhai scripting API, a matching Rust API, and the `occt-rhai` command line tool. |
+| [`scratchcad-occt-rhai`](https://github.com/scratchcad/scratchcad-occt-rs/tree/main/crates/scratchcad-occt-rhai) | The Rhai scripting API and a matching Rust API. |
 | [`scratchcad-occt-sys`](https://github.com/scratchcad/scratchcad-occt-rs/tree/main/crates/scratchcad-occt-sys) | Low-level [cxx](https://cxx.rs) bindings to OpenCASCADE 7.8 that turn C++ exceptions into Rust `Result`s. |
 
 OpenCASCADE itself is built from source by the [`occt-sys`](https://crates.io/crates/occt-sys)
 crate, or linked from a system installation.
 
 ## Usage
-
-### Command line
-
-```sh
-cargo install scratchcad-occt-rhai
-occt-rhai part.rhai -o part.step   # or .stp, .iges, .brep, .stl
-```
-
-The script's last expression is the shape to export. Run `occt-rhai --help` for the options.
-
-### From Rust
 
 ```sh
 cargo add scratchcad-occt-rhai
