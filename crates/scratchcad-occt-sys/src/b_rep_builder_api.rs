@@ -156,6 +156,10 @@ mod inner {
             progress: &Message_ProgressRange,
         ) -> Result<()>;
         pub fn IsDone(self: &BRepBuilderAPI_GTransform) -> bool;
+
+        /// A copy of `shape` sharing no topology or geometry with it (triangulations are not
+        /// copied). Sub-shapes keep their exploration order.
+        pub fn BRepBuilderAPI_copy_shape(shape: &TopoDS_Shape) -> Result<UniquePtr<TopoDS_Shape>>;
     }
 }
 

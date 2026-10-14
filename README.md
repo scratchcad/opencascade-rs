@@ -68,6 +68,28 @@ let hole = Shape::cylinder(4.0, 5.0)?.translate(DVec3::new(20.0, 15.0, 0.0))?;
 let part = plate.fillet(2.0, plate.edges().select("|Z")?.shapes())?.cut(&hole)?;
 ```
 
+### Running scripts you do not trust
+
+A sandboxed engine has no functions that read or write files, and a `CancelToken` stops long
+OpenCASCADE operations (booleans, fillets, meshing, STEP export) from another thread. Shapes
+convert to STEP, IGES, BREP or binary STL in memory:
+
+```rust
+use scratchcad_occt_rhai::{sandboxed_engine, to_shape, with_cancel, CancelToken, Format, MeshOptions};
+
+let mut engine = sandboxed_engine();
+engine.set_max_operations(1_000_000);
+let token = CancelToken::new(); // call token.cancel() from another thread to stop the work
+let step = with_cancel(&token, || -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let shape = to_shape(engine.eval(script)?)?;
+    Ok(shape.to_bytes(Format::Step, &MeshOptions::new(0.01))?)
+})?;
+```
+
+`set_message_handler` keeps OpenCASCADE's own console output off stdout. `Shape` is not `Send`:
+OpenCASCADE shares sub-shapes between shapes and updates them in place, so use `shape.detach()`
+to move a deep copy to another thread, and do not enable Rhai's `sync` feature.
+
 ### Learn more
 
 - [Rhai API reference](https://github.com/scratchcad/scratchcad-occt-rs/blob/main/docs/rhai-api.md):

@@ -19,6 +19,11 @@ mod inner {
             reader: Pin<&mut STEPControl_Reader>,
             filename: String,
         ) -> Result<IFSelect_ReturnStatus>;
+        /// Reads a STEP model from memory.
+        pub fn read_step_bytes(
+            reader: Pin<&mut STEPControl_Reader>,
+            bytes: &[u8],
+        ) -> Result<IFSelect_ReturnStatus>;
         pub fn TransferRoots(
             self: Pin<&mut STEPControl_Reader>,
             progress: &Message_ProgressRange,
@@ -33,9 +38,19 @@ mod inner {
             writer: Pin<&mut STEPControl_Writer>,
             shape: &TopoDS_Shape,
         ) -> Result<IFSelect_ReturnStatus>;
+        /// Like `transfer_shape`, stopping early when `progress` asks it to.
+        pub fn transfer_shape_with_progress(
+            writer: Pin<&mut STEPControl_Writer>,
+            shape: &TopoDS_Shape,
+            progress: &Message_ProgressRange,
+        ) -> Result<IFSelect_ReturnStatus>;
         pub fn write_step(
             writer: Pin<&mut STEPControl_Writer>,
             filename: String,
         ) -> Result<IFSelect_ReturnStatus>;
+        /// The transferred model as STEP text, or null if writing fails.
+        pub fn write_step_bytes(
+            writer: Pin<&mut STEPControl_Writer>,
+        ) -> Result<UniquePtr<CxxString>>;
     }
 }

@@ -44,6 +44,13 @@ pub fn make_box(dx: f64, dy: f64, dz: f64) -> UniquePtr<TopoDS_Shape> {
     make_box_at(0.0, 0.0, 0.0, dx, dy, dz)
 }
 
+/// A cylinder standing on the XY plane around the Z axis.
+pub fn make_cylinder(radius: f64, height: f64) -> UniquePtr<TopoDS_Shape> {
+    let axis = gp::gp_Ax2_new(&pnt(0.0, 0.0, 0.0), &dir(0.0, 0.0, 1.0));
+    let mut make = b_rep_prim_api::BRepPrimAPI_MakeCylinder_new(&axis, radius, height).unwrap();
+    TopoDS_Shape_to_owned(make.pin_mut().Shape().unwrap())
+}
+
 /// The number of times an explorer visits sub-shapes of `kind` (shared ones count repeatedly).
 pub fn explore_count(shape: &TopoDS_Shape, kind: TopAbs_ShapeEnum) -> usize {
     let mut explorer = TopExp_Explorer_new(shape, kind);

@@ -11,6 +11,10 @@ Low-level [cxx](https://cxx.rs) bindings to OpenCASCADE 7.8, used by `scratchcad
   return null handles or crash check explicitly and throw. Handle dereferences throw
   `Standard_NullObject` instead of dereferencing null.
 * **One module per OCCT package**, named in snake case (`BRepPrimAPI` -> `b_rep_prim_api`).
+* **Cancellation and console output go through Rust.** `message::Message_CancellableProgress`
+  is a progress indicator whose `UserBreak()` reads a Rust `CancelFlag`, so algorithms given its
+  range stop when the flag is set from any thread. `Message_use_rust_printer` replaces OCCT's
+  stdout printer with one that forwards messages to a Rust handler.
 
 OpenCASCADE itself comes from the unmodified [`occt-sys`](https://crates.io/crates/occt-sys) crate
 when the `builtin` feature is enabled; otherwise a system installation is located with CMake.

@@ -4,9 +4,11 @@ mod common;
 
 use common::{assert_close, assert_vec_close, temp_dir, v};
 use scratchcad_occt_rhai::{
-    engine, eval, eval_shape,
+    engine, error_kind, eval, eval_shape,
     rhai::{Array, Dynamic, Engine, INT},
-    BoundingBox, DVec3, Mesh, Plane, Selection, Shape, ShapeType, Sketch,
+    sandboxed_engine,
+    script::FILE_FUNCTIONS,
+    BoundingBox, DVec3, ErrorKind, Mesh, Plane, Selection, Shape, ShapeType, Sketch,
 };
 use std::f64::consts::PI;
 
@@ -585,4 +587,73 @@ fn occt_message_level_can_be_toggled() {
     scratchcad_occt_rhai::set_occt_messages(false);
     assert!(scratchcad_occt_rhai::ffi::message::Message_default_printer_count() >= 1);
     scratchcad_occt_rhai::set_occt_messages(true);
+}
+
+#[test]
+fn sandboxed_engines_cannot_touch_files() {
+    let names = |engine: &Engine| -> Vec<String> {
+        engine.gen_fn_signatures(false).into_iter().map(|signature| signature).collect()
+    };
+    let full = names(&engine());
+    let sandboxed = names(&sandboxed_engine());
+    for name in FILE_FUNCTIONS {
+        let declared =
+            |signatures: &[String]| signatures.iter().any(|s| s.starts_with(&format!("{name}(")));
+        assert!(declared(&full), "{name} is registered by `register`");
+        assert!(!declared(&sandboxed), "{name} is registered by `register_sandboxed`");
+    }
+    // Everything else is the same.
+    let file_functions: Vec<_> = full
+        .iter()
+        .filter(|s| FILE_FUNCTIONS.iter().any(|n| s.starts_with(&format!("{n}("))))
+        .collect();
+    assert_eq!(full.len() - file_functions.len(), sandboxed.len());
+
+    let dir = temp_dir();
+    let path = dir.path().join("x.step").to_string_lossy().replace('\\', "/");
+    let error = sandboxed_engine()
+        .eval::<Dynamic>(&format!("box(1, 1, 1).export_step(\"{path}\")"))
+        .unwrap_err();
+    assert!(error.to_string().contains("Function not found"), "{error}");
+    assert!(!dir.path().join("x.step").exists());
+    let volume: f64 = sandboxed_engine().eval("box(1, 2, 3).volume()").unwrap();
+    assert_close(volume, 6.0, 1e-9);
+}
+
+#[test]
+fn errors_carry_their_kind() {
+    let tag = |script: &str| {
+        run::<INT>(&format!("let t = -1; try {{ {script}; }} catch (e) {{ t = e.tag; }} t"))
+    };
+    assert_eq!(tag("box(0, 1, 1)"), ErrorKind::InvalidArgument.tag());
+    assert_eq!(tag("box(1, 1, 1).faces()[10]"), ErrorKind::IndexOutOfRange.tag());
+    assert_eq!(tag("box(1, 1, 1).faces(\"%NOPE\")"), ErrorKind::Selector.tag());
+    assert_eq!(tag("throw \"mine\""), 0, "values a script throws carry no kind");
+    // Messages are unchanged.
+    let message = run::<String>("let m = \"\"; try { box(0, 1, 1); } catch (e) { m = e; } m");
+    assert!(message.contains("box x size must be positive"), "{message}");
+
+    let error = engine().eval::<Dynamic>("box(1, 1, 1).fillet(50)").unwrap_err();
+    assert!(matches!(error_kind(&error), Some(ErrorKind::Occt | ErrorKind::OperationFailed)));
+    let error = engine().eval::<Dynamic>("box(1, 1, -1)").unwrap_err();
+    assert_eq!(error_kind(&error), Some(ErrorKind::InvalidArgument));
+    let error = engine().eval::<Dynamic>("no_such_function()").unwrap_err();
+    assert_eq!(error_kind(&error), None);
+}
+
+#[test]
+fn point_queries_and_mesh_options_in_scripts() {
+    assert!(run::<bool>("box(2, 2, 2).contains([1, 1, 1])"));
+    assert!(!run::<bool>("box(2, 2, 2).contains(vec3(3, 1, 1))"));
+    assert_eq!(run::<String>("box(2, 2, 2).classify([1, 1, 1])"), "inside");
+    assert_eq!(run::<String>("box(2, 2, 2).classify([2, 1, 1])"), "on");
+    assert_eq!(run::<String>("box(2, 2, 2).classify([5, 1, 1])"), "outside");
+    fails("circle(1).contains([0, 0, 0])", "expected solid");
+    fails("box(1, 1, 1).contains(\"middle\")", "point must be a vec3");
+
+    let coarse = run::<INT>("(cylinder(1, 1) - cylinder(0.2, 1)).mesh(0.1).triangle_count");
+    let fine = run::<INT>("(cylinder(1, 1) - cylinder(0.2, 1)).mesh(0.1, 5).triangle_count");
+    assert!(fine > coarse);
+    fails("box(1, 1, 1).mesh(0.1, \"fine\")", "angular tolerance must be a number");
+    assert_eq!(run::<INT>("box(1, 1, 1).mesh(0.1).welded().vertex_count"), 8);
 }

@@ -9,12 +9,16 @@
 //! * Angles are in degrees.
 //! * Arguments that pick faces or edges accept a selector string (`">Z"`), a `Selection`, a
 //!   single `Shape` or an array of shapes.
-//! * Every fallible function raises a catchable runtime error.
+//! * Every fallible function raises a catchable runtime error, tagged with its
+//!   [`ErrorKind`](crate::ErrorKind).
+//!
+//! [`register_sandboxed`] adds everything except the functions that read or write files, for
+//! running scripts you do not trust; [`register_files`] adds those; [`register`] adds both.
 
 use crate::{
     error::{Error, Result as CrateResult},
     math::{parse_direction, Plane},
-    mesh::Mesh,
+    mesh::{Mesh, MeshOptions},
     selection::Selection,
     shape::{BoundingBox, Shape, ShapeType},
     sketch::Sketch,
@@ -149,8 +153,17 @@ fn vec_array(vectors: &[DVec3]) -> Array {
     vectors.iter().copied().map(Dynamic::from).collect()
 }
 
-/// Registers every type and function of this crate with `engine`.
+/// Registers every type and function of this crate with `engine`: [`register_sandboxed`] and
+/// [`register_files`].
 pub fn register(engine: &mut Engine) {
+    register_sandboxed(engine);
+    register_files(engine);
+}
+
+/// Registers every type and function except those that touch the filesystem, so that scripts
+/// can model, measure and mesh but never read or write files. Use it for scripts you do not
+/// trust (together with Rhai's own limits, such as `Engine::set_max_operations`).
+pub fn register_sandboxed(engine: &mut Engine) {
     register_vec3(engine);
     register_plane(engine);
     register_constructors(engine);
@@ -158,6 +171,55 @@ pub fn register(engine: &mut Engine) {
     register_selection(engine);
     register_sketch(engine);
     register_results(engine);
+}
+
+/// The functions [`register_files`] adds: they read or write the file at the path they are
+/// given.
+pub const FILE_FUNCTIONS: [&str; 9] = [
+    "load",
+    "import_step",
+    "import_iges",
+    "import_brep",
+    "save",
+    "export_step",
+    "export_iges",
+    "export_brep",
+    "export_stl",
+];
+
+/// Registers the functions that read and write files ([`FILE_FUNCTIONS`]): `load(path)`,
+/// `import_step/iges/brep(path)`, `shape.save(path)` and `shape.export_step/iges/brep/stl(path)`.
+pub fn register_files(engine: &mut Engine) {
+    engine
+        // `import`/`export` are Rhai keywords, hence `load`/`save`.
+        .register_fn("load", |path: &str| -> RhaiResult<Shape> { Ok(Shape::import(path)?) })
+        .register_fn("import_step", |path: &str| -> RhaiResult<Shape> {
+            Ok(Shape::read_step(path)?)
+        })
+        .register_fn("import_iges", |path: &str| -> RhaiResult<Shape> {
+            Ok(Shape::read_iges(path)?)
+        })
+        .register_fn("import_brep", |path: &str| -> RhaiResult<Shape> {
+            Ok(Shape::read_brep(path)?)
+        })
+        .register_fn("save", |s: &mut Shape, path: &str| -> RhaiResult<()> {
+            Ok(s.export(path, DEFAULT_STL_TOLERANCE)?)
+        })
+        .register_fn("export_step", |s: &mut Shape, path: &str| -> RhaiResult<()> {
+            Ok(s.write_step(path)?)
+        })
+        .register_fn("export_iges", |s: &mut Shape, path: &str| -> RhaiResult<()> {
+            Ok(s.write_iges(path)?)
+        })
+        .register_fn("export_brep", |s: &mut Shape, path: &str| -> RhaiResult<()> {
+            Ok(s.write_brep(path)?)
+        })
+        .register_fn("export_stl", |s: &mut Shape, path: &str| -> RhaiResult<()> {
+            Ok(s.write_stl(path, DEFAULT_STL_TOLERANCE)?)
+        })
+        .register_fn("export_stl", |s: &mut Shape, path: &str, tol: Dynamic| -> RhaiResult<()> {
+            Ok(s.write_stl(Path::new(path), number(&tol, "tolerance")?)?)
+        });
 }
 
 fn register_vec3(engine: &mut Engine) {
@@ -373,18 +435,6 @@ fn register_constructors(engine: &mut Engine) {
         })
         .register_fn("loft", |sections: Dynamic, solid: bool| -> RhaiResult<Shape> {
             Ok(Shape::loft(&shapes(&sections)?, solid)?)
-        })
-        // Files
-        // `import`/`export` are Rhai keywords, hence `load`/`save`.
-        .register_fn("load", |path: &str| -> RhaiResult<Shape> { Ok(Shape::import(path)?) })
-        .register_fn("import_step", |path: &str| -> RhaiResult<Shape> {
-            Ok(Shape::read_step(path)?)
-        })
-        .register_fn("import_iges", |path: &str| -> RhaiResult<Shape> {
-            Ok(Shape::read_iges(path)?)
-        })
-        .register_fn("import_brep", |path: &str| -> RhaiResult<Shape> {
-            Ok(Shape::read_brep(path)?)
         });
 }
 
@@ -413,6 +463,12 @@ fn register_shape(engine: &mut Engine) {
         .register_fn("closest_points", |s: &mut Shape, other: Shape| -> RhaiResult<Array> {
             let (a, b) = s.closest_points(&other)?;
             Ok(vec_array(&[a, b]))
+        })
+        .register_fn("contains", |s: &mut Shape, p: Dynamic| -> RhaiResult<bool> {
+            Ok(s.contains(vector(&p, "point")?)?)
+        })
+        .register_fn("classify", |s: &mut Shape, p: Dynamic| -> RhaiResult<String> {
+            Ok(s.classify(vector(&p, "point")?)?.name().to_string())
         })
         // Booleans
         .register_fn("fuse", |a: &mut Shape, b: Shape| -> RhaiResult<Shape> { Ok(a.fuse(&b)?) })
@@ -578,28 +634,18 @@ fn register_shape(engine: &mut Engine) {
         .register_fn("normal", |s: &mut Shape| -> RhaiResult<DVec3> { Ok(s.normal()?) })
         .register_fn("plane", |s: &mut Shape| -> RhaiResult<Plane> { Ok(s.plane()?) })
         .register_fn("outer_wire", |s: &mut Shape| -> RhaiResult<Shape> { Ok(s.outer_wire()?) })
-        // Output
+        // Meshing
         .register_fn("mesh", |s: &mut Shape, tolerance: Dynamic| -> RhaiResult<Mesh> {
             Ok(s.mesh(number(&tolerance, "tolerance")?)?)
         })
-        .register_fn("save", |s: &mut Shape, path: &str| -> RhaiResult<()> {
-            Ok(s.export(path, DEFAULT_STL_TOLERANCE)?)
-        })
-        .register_fn("export_step", |s: &mut Shape, path: &str| -> RhaiResult<()> {
-            Ok(s.write_step(path)?)
-        })
-        .register_fn("export_iges", |s: &mut Shape, path: &str| -> RhaiResult<()> {
-            Ok(s.write_iges(path)?)
-        })
-        .register_fn("export_brep", |s: &mut Shape, path: &str| -> RhaiResult<()> {
-            Ok(s.write_brep(path)?)
-        })
-        .register_fn("export_stl", |s: &mut Shape, path: &str| -> RhaiResult<()> {
-            Ok(s.write_stl(path, DEFAULT_STL_TOLERANCE)?)
-        })
-        .register_fn("export_stl", |s: &mut Shape, path: &str, tol: Dynamic| -> RhaiResult<()> {
-            Ok(s.write_stl(Path::new(path), number(&tol, "tolerance")?)?)
-        });
+        .register_fn(
+            "mesh",
+            |s: &mut Shape, tolerance: Dynamic, degrees: Dynamic| -> RhaiResult<Mesh> {
+                let options = MeshOptions::new(number(&tolerance, "tolerance")?)
+                    .angular_tolerance(number(&degrees, "angular tolerance")?);
+                Ok(s.mesh_with(&options)?)
+            },
+        );
 }
 
 fn call_predicate(ctx: &NativeCallContext, f: &FnPtr, shape: &Shape) -> RhaiResult<bool> {
@@ -781,6 +827,7 @@ fn register_results(engine: &mut Engine) {
         .register_get("vertex_count", |m: &mut Mesh| m.vertex_count() as INT)
         .register_get("triangle_count", |m: &mut Mesh| m.triangle_count() as INT)
         .register_fn("area", |m: &mut Mesh| m.area())
+        .register_fn("welded", |m: &mut Mesh| m.welded())
         .register_fn("to_string", |m: &mut Mesh| m.to_string())
         .register_fn("to_debug", |m: &mut Mesh| m.to_string());
 }

@@ -5,7 +5,13 @@
 //! * A Rust API built around cheap-to-clone, immutable handle types ([`Shape`], [`Selection`],
 //!   [`Sketch`], [`Plane`]) whose operations all return [`Result`] and chain naturally.
 //! * [`register`], which exposes that API to a Rhai [`Engine`] with
-//!   script-friendly argument conversions.
+//!   script-friendly argument conversions. [`register_sandboxed`] leaves out the functions
+//!   that read and write files, for scripts you do not trust.
+//!
+//! Shapes convert to and from STEP, IGES, BREP and (write-only) STL in memory
+//! ([`Shape::to_bytes`], [`Shape::from_bytes`]) or as files. Long-running OpenCASCADE algorithms
+//! can be stopped from another thread with a [`CancelToken`] (see [`with_cancel`]), and
+//! OpenCASCADE's console output can be redirected with [`set_message_handler`].
 //!
 //! ```no_run
 //! let part = scratchcad_occt_rhai::eval_shape(r#"
@@ -31,45 +37,47 @@
 //! }
 //! ```
 
+pub mod cancel;
 pub mod cli;
 mod error;
 mod io;
 pub mod math;
 mod mesh;
+pub mod messages;
 pub mod script;
 mod selection;
 pub mod selector;
 mod shape;
 mod sketch;
 
-pub use error::{Error, Result};
+pub use cancel::{with_cancel, CancelToken};
+pub use error::{error_kind, Error, ErrorKind, Result};
 pub use glam::{DVec2, DVec3};
+pub use io::Format;
 pub use math::Plane;
-pub use mesh::Mesh;
+pub use mesh::{Mesh, MeshOptions};
+pub use messages::{set_message_handler, set_occt_messages, MessageLevel};
 pub use rhai;
 pub use scratchcad_occt_sys as ffi;
-pub use script::{register, to_shape};
+pub use script::{register, register_files, register_sandboxed, to_shape};
 pub use selection::{Selection, TOLERANCE};
-pub use shape::{BoundingBox, Shape, ShapeType};
+pub use shape::{BoundingBox, DetachedShape, PointLocation, Shape, ShapeType, CLASSIFY_TOLERANCE};
 pub use sketch::Sketch;
 
 use rhai::{Dynamic, Engine, EvalAltResult};
-
-/// Enables or disables OpenCASCADE's own console output (such as the STEP/IGES transfer
-/// statistics it prints to stdout). Failures are always printed.
-pub fn set_occt_messages(enabled: bool) {
-    use ffi::message::{Message_Gravity, Message_set_default_trace_level};
-    Message_set_default_trace_level(if enabled {
-        Message_Gravity::Message_Info
-    } else {
-        Message_Gravity::Message_Fail
-    });
-}
 
 /// A Rhai engine with every type and function of this crate registered.
 pub fn engine() -> Engine {
     let mut engine = Engine::new();
     register(&mut engine);
+    engine
+}
+
+/// A Rhai engine with everything but the file functions registered (see
+/// [`register_sandboxed`]). Set Rhai's own limits on it before running untrusted scripts.
+pub fn sandboxed_engine() -> Engine {
+    let mut engine = Engine::new();
+    register_sandboxed(&mut engine);
     engine
 }
 

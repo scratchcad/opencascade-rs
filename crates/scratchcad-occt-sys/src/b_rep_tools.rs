@@ -11,6 +11,7 @@ mod inner {
         type TopoDS_Shape = crate::topo_ds::TopoDS_Shape;
         type TopoDS_Face = crate::topo_ds::TopoDS_Face;
         type TopoDS_Wire = crate::topo_ds::TopoDS_Wire;
+        type Message_ProgressRange = crate::message::Message_ProgressRange;
 
         type BRepTools;
 
@@ -20,5 +21,16 @@ mod inner {
         pub fn write(shape: &TopoDS_Shape, path: String) -> Result<bool>;
         #[cxx_name = "read_brep_text"]
         pub fn read(path: String) -> Result<UniquePtr<TopoDS_Shape>>;
+
+        /// The shape in OpenCASCADE's text BREP format.
+        pub fn write_brep_bytes(
+            shape: &TopoDS_Shape,
+            progress: &Message_ProgressRange,
+        ) -> Result<UniquePtr<CxxString>>;
+        /// Reads a shape in the text BREP format from memory; null if there is none.
+        pub fn read_brep_bytes(
+            bytes: &[u8],
+            progress: &Message_ProgressRange,
+        ) -> Result<UniquePtr<TopoDS_Shape>>;
     }
 }
