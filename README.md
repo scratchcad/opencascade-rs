@@ -71,8 +71,10 @@ let part = plate.fillet(2.0, plate.edges().select("|Z")?.shapes())?.cut(&hole)?;
 ### Running scripts you do not trust
 
 A sandboxed engine has no functions that read or write files, and a `CancelToken` stops long
-OpenCASCADE operations (booleans, fillets, meshing, STEP export) from another thread. Shapes
-convert to STEP, IGES, BREP or binary STL in memory:
+OpenCASCADE operations (booleans, shells, meshing, STEP/IGES/BREP conversion) from another
+thread; fillets, chamfers and lofts cannot be interrupted once started (OpenCASCADE 7.8 ignores
+their progress range) but do not start after a cancel. Shapes convert to STEP, IGES, BREP or
+binary STL in memory:
 
 ```rust
 use scratchcad_occt_rhai::{sandboxed_engine, to_shape, with_cancel, CancelToken, Format, MeshOptions};

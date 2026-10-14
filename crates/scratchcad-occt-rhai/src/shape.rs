@@ -658,12 +658,14 @@ impl Shape {
 
     /// The union of both shapes.
     pub fn fuse(&self, other: &Shape) -> Result<Self> {
-        Self::from_algorithm(&self.boolean(other, "fuse", ffi::b_rep_algo_api::BRepAlgoAPI_fuse)?)
+        let result = self.boolean(other, "fuse", ffi::b_rep_algo_api::BRepAlgoAPI_fuse)?;
+        Self::from_algorithm(&result)
     }
 
     /// This shape with `other` removed.
     pub fn cut(&self, other: &Shape) -> Result<Self> {
-        Self::from_algorithm(&self.boolean(other, "cut", ffi::b_rep_algo_api::BRepAlgoAPI_cut)?)
+        let result = self.boolean(other, "cut", ffi::b_rep_algo_api::BRepAlgoAPI_cut)?;
+        Self::from_algorithm(&result)
     }
 
     /// The intersection of both shapes.
@@ -787,6 +789,8 @@ impl Shape {
 
     /// Sweeps the profile (this shape) along a path edge or wire.
     pub fn sweep(&self, path: &Shape) -> Result<Self> {
+        // OpenCASCADE cannot interrupt a sweep, so do not start one that was cancelled.
+        crate::cancel::check()?;
         let spine = match path.shape_type() {
             ShapeType::Wire => path.clone(),
             ShapeType::Edge => Self::wire_from(std::slice::from_ref(path))?,
@@ -811,6 +815,9 @@ impl Shape {
         if sections.len() < 2 {
             return Err(invalid("a loft needs at least 2 sections"));
         }
+        // OpenCASCADE 7.8 ignores the progress range of lofts, fillets and chamfers, so they
+        // cannot be interrupted once started; at least do not start them after a cancel.
+        crate::cancel::check()?;
         let mut make = ffi::b_rep_offset_api::BRepOffsetAPI_ThruSections_new(solid);
         for section in sections {
             let wire = match section.shape_type() {
@@ -841,6 +848,7 @@ impl Shape {
     pub fn fillet(&self, radius: f64, edges: &[Shape]) -> Result<Self> {
         require_positive(radius, "fillet radius")?;
         self.require_edges(edges, "fillet")?;
+        crate::cancel::check()?;
         let mut make = ffi::b_rep_fillet_api::BRepFilletAPI_MakeFillet_new(self.raw())?;
         for edge in edges {
             make.pin_mut().add_edge(radius, edge.edge()?)?;
@@ -861,6 +869,7 @@ impl Shape {
     pub fn chamfer(&self, distance: f64, edges: &[Shape]) -> Result<Self> {
         require_positive(distance, "chamfer distance")?;
         self.require_edges(edges, "chamfer")?;
+        crate::cancel::check()?;
         let mut make = ffi::b_rep_fillet_api::BRepFilletAPI_MakeChamfer_new(self.raw())?;
         for edge in edges {
             make.pin_mut().add_edge(distance, edge.edge()?)?;
@@ -955,6 +964,7 @@ impl Shape {
 
     /// Merges coplanar faces and collinear edges left behind by boolean operations.
     pub fn clean(&self) -> Result<Self> {
+        crate::cancel::check()?;
         let mut unify = ffi::shape_upgrade::UnifySameDomain_new(self.raw(), true, true, true)?;
         unify.pin_mut().build()?;
         Self::from_algorithm(unify.shape()?)

@@ -2,11 +2,15 @@
 
 mod common;
 
-use common::{assert_close, cube10};
+use common::{assert_close, cube10, v};
 use scratchcad_occt_rhai::{
     engine, error_kind, with_cancel, CancelToken, Error, ErrorKind, Format, MeshOptions, Shape,
 };
 use std::time::{Duration, Instant};
+
+fn circle(z: f64) -> Shape {
+    Shape::circle(v(0.0, 0.0, z), v(0.0, 0.0, 1.0), 2.0).unwrap()
+}
 
 fn cancelled() -> CancelToken {
     let token = CancelToken::new();
@@ -23,6 +27,8 @@ fn assert_cancelled<T: std::fmt::Debug>(result: Result<T, Error>) {
 fn operations_stop_when_already_cancelled() {
     let a = cube10();
     let b = Shape::sphere(6.0).unwrap();
+    let step = a.to_step().unwrap();
+    let brep = a.to_brep().unwrap();
     let token = cancelled();
     with_cancel(&token, || {
         assert_cancelled(a.fuse(&b));
@@ -31,9 +37,20 @@ fn operations_stop_when_already_cancelled() {
         assert_cancelled(a.section(&b));
         assert_cancelled(a.fillet_all(1.0));
         assert_cancelled(a.chamfer_all(1.0));
+        assert_cancelled(a.shell(-1.0, a.faces().select(">Z").unwrap().shapes()));
+        assert_cancelled(a.clean());
+        assert_cancelled(Shape::loft(&[circle(0.0), circle(5.0)], true));
+        assert_cancelled(
+            Shape::circle(v(0.0, 0.0, 0.0), v(0.0, 0.0, 1.0), 1.0)
+                .unwrap()
+                .sweep(&Shape::line(v(0.0, 0.0, 0.0), v(0.0, 0.0, 5.0)).unwrap()),
+        );
         assert_cancelled(a.mesh(0.1));
         assert_cancelled(a.to_step());
+        assert_cancelled(a.to_iges());
         assert_cancelled(a.to_brep());
+        assert_cancelled(Shape::from_step(&step));
+        assert_cancelled(Shape::from_brep(&brep));
     });
 }
 
@@ -41,7 +58,7 @@ fn operations_stop_when_already_cancelled() {
 fn operations_run_normally_under_a_live_token() {
     let token = CancelToken::new();
     let volume = with_cancel(&token, || {
-        let part = cube10().cut(&Shape::sphere(6.0).unwrap())?.fillet_all(0.5)?;
+        let part = cube10().fillet_all(0.5)?.cut(&Shape::sphere(6.0).unwrap())?;
         let bytes = part.to_bytes(Format::Step, &MeshOptions::new(0.1))?;
         Shape::from_step(&bytes)?.volume()
     })
@@ -52,9 +69,11 @@ fn operations_run_normally_under_a_live_token() {
 
 #[test]
 fn cancelling_from_another_thread_stops_meshing() {
-    // Meshing a sphere this finely takes several seconds.
-    let sphere = Shape::sphere(10.0).unwrap();
-    let options = MeshOptions::new(1e-5);
+    // Meshing stops between faces, so mesh many faces: unstopped, this takes many seconds.
+    let spheres: Vec<Shape> =
+        (0..400).map(|i| Shape::sphere_at(v(3.0 * i as f64, 0.0, 0.0), 1.0).unwrap()).collect();
+    let sphere = Shape::compound(&spheres).unwrap();
+    let options = MeshOptions::new(1e-4);
     let token = CancelToken::new();
     let remote = token.clone();
     let canceller = std::thread::spawn(move || {

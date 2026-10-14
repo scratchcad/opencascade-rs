@@ -22,7 +22,7 @@ use std::{
 static TRANSLATOR_LOCK: Mutex<()> = Mutex::new(());
 
 /// Runs a STEP or IGES conversion while holding the translator lock.
-fn translator<T>(f: impl FnOnce() -> Result<T>) -> Result<T> {
+pub(crate) fn translator<T>(f: impl FnOnce() -> Result<T>) -> Result<T> {
     // A panic while holding the lock cannot leave OCCT in a worse state than the panic itself.
     let _guard = TRANSLATOR_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     f()
@@ -206,10 +206,12 @@ impl Shape {
     /// OpenCASCADE 7.8 can only read IGES from files, so the bytes pass through a temporary
     /// file in [`std::env::temp_dir`].
     pub fn from_iges(bytes: &[u8]) -> Result<Shape> {
-        let file = TempFile::new("igs");
-        std::fs::write(&file.0, bytes)
-            .map_err(|e| file_error("write", Format::Iges, &file.0, e))?;
-        Shape::read_iges(&file.0)
+        let file = TempFile::create("igs", bytes)
+            .map_err(|e| Error::Io(format!("failed to write a temporary IGES file: {e}")))?;
+        Shape::read_iges(&file.0).map_err(|e| match e {
+            Error::Io(_) => convert_error("read", Format::Iges),
+            other => other,
+        })
     }
 
     /// Reads a shape in OpenCASCADE's text BREP format.
@@ -328,14 +330,36 @@ fn unsupported(path: &Path) -> Error {
 struct TempFile(PathBuf);
 
 impl TempFile {
-    fn new(extension: &str) -> Self {
+    /// Creates a new file holding `bytes`. The file is created exclusively (never through an
+    /// existing file or symlink of the same name, which another user of a shared temporary
+    /// directory could have planted), trying another name if one is taken.
+    fn create(extension: &str, bytes: &[u8]) -> std::io::Result<Self> {
+        use std::io::Write;
         static COUNTER: AtomicU64 = AtomicU64::new(0);
-        let name = format!(
-            "scratchcad-occt-{}-{}.{extension}",
-            std::process::id(),
-            COUNTER.fetch_add(1, Ordering::Relaxed)
-        );
-        Self(std::env::temp_dir().join(name))
+        let mut attempts = 0;
+        loop {
+            let nanos = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.subsec_nanos());
+            let name = format!(
+                "scratchcad-occt-{}-{}-{nanos}.{extension}",
+                std::process::id(),
+                COUNTER.fetch_add(1, Ordering::Relaxed)
+            );
+            let path = std::env::temp_dir().join(name);
+            match std::fs::OpenOptions::new().write(true).create_new(true).open(&path) {
+                Ok(mut file) => {
+                    // Removed on drop, even if writing fails.
+                    let temp = Self(path);
+                    file.write_all(bytes)?;
+                    return Ok(temp);
+                },
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists && attempts < 100 => {
+                    attempts += 1;
+                },
+                Err(e) => return Err(e),
+            }
+        }
     }
 }
 

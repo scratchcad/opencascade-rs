@@ -290,6 +290,8 @@ impl Shape {
 mod tests {
     use super::*;
 
+    // One face holding one triangle, so a single range is meant.
+    #[allow(clippy::single_range_in_vec_init)]
     fn triangle_mesh() -> Mesh {
         Mesh {
             vertices: vec![DVec3::ZERO, DVec3::X, DVec3::Y],

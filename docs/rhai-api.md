@@ -119,10 +119,12 @@ others, such as servers:
   convert to and from STEP, IGES and BREP (and, write-only, binary STL) without touching the
   filesystem. `Format::from_extension` and `Format::media_type` help with file names and HTTP.
   (OpenCASCADE 7.8 can only read IGES from files, so `from_iges` uses a temporary file.)
-* **Cancellation.** Booleans, fillets, chamfers, shells, lofts, meshing and STEP/IGES/BREP
-  conversion poll the `CancelToken` of the enclosing `with_cancel(&token, || ...)` and fail with
-  `Error::Cancelled` once it is cancelled from another thread. `error_kind(&err)` recovers the
-  kind of an error raised inside a script.
+* **Cancellation.** Booleans, shells, meshing (between faces) and STEP/IGES/BREP conversion
+  poll the `CancelToken` of the enclosing `with_cancel(&token, || ...)` and fail with
+  `Error::Cancelled` once it is cancelled from another thread. OpenCASCADE 7.8 ignores the
+  progress range of fillets, chamfers and lofts, so those (and sweeps and `clean`) run to the end
+  once started, but fail with `Error::Cancelled` instead of starting after a cancel.
+  `error_kind(&err)` recovers the kind of an error raised inside a script.
 * **Meshing.** `shape.mesh_with(&MeshOptions::new(tolerance).angular_tolerance(10.0))` also sets
   relative tolerances and parallel meshing. Meshing never modifies the shape (it works on a copy),
   `mesh.face_triangles` tells which triangles belong to which face, and `mesh.welded()` merges the

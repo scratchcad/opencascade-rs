@@ -28,6 +28,16 @@ fn messages_go_where_they_are_sent() {
     Shape::cube(1.0).unwrap().to_step().unwrap();
     assert!(seen.lock().unwrap().is_empty());
 
+    // A handler may reconfigure messages; this one sends the rest to stderr.
+    let calls = Arc::new(Mutex::new(0));
+    let counter = calls.clone();
+    set_message_handler(MessageLevel::Trace, move |_, _| {
+        *counter.lock().unwrap() += 1;
+        set_occt_messages(false);
+    });
+    Shape::cube(1.0).unwrap().to_step().unwrap();
+    assert_eq!(*calls.lock().unwrap(), 1);
+
     // Back to printing: the handler no longer hears anything.
     set_occt_messages(false);
     Shape::cube(1.0).unwrap().to_step().unwrap();

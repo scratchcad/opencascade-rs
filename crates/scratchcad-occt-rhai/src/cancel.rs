@@ -1,9 +1,13 @@
 //! Cancelling long-running OpenCASCADE algorithms.
 //!
-//! Booleans, fillets, chamfers, shells, lofts, meshing and STEP/IGES/BREP conversion can take a
-//! long time on complex shapes. Run them inside [`with_cancel`] and they poll the
-//! [`CancelToken`] while they work: once it is cancelled (from any thread) the running algorithm
-//! stops and the operation fails with [`Error::Cancelled`].
+//! Booleans, shells, meshing and STEP/IGES/BREP conversion can take a long time on complex
+//! shapes. Run them inside [`with_cancel`] and they poll the [`CancelToken`] while they work:
+//! once it is cancelled (from any thread) the running algorithm stops and the operation fails
+//! with [`Error::Cancelled`]. Meshing stops between faces, so a single huge face still finishes.
+//!
+//! OpenCASCADE 7.8 ignores the progress range of fillets, chamfers and lofts, and sweeps and
+//! `clean` take none, so once started those run to completion; under a cancelled token they fail
+//! with [`Error::Cancelled`] without starting.
 //!
 //! ```no_run
 //! use scratchcad_occt_rhai::{with_cancel, CancelToken, Error, Shape};

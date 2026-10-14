@@ -25,8 +25,10 @@ inline std::unique_ptr<TopoDS_Shape> read_brep_text(rust::String path) {
   }
 }
 
+// The same bytes `BRepTools::Write` writes to a file, header line included.
 inline std::unique_ptr<std::string> write_brep_bytes(const TopoDS_Shape &shape, const Message_ProgressRange &range) {
   std::ostringstream stream;
+  stream << "DBRep_DrawableShape\n";
   BRepTools::Write(shape, stream, range);
   return std::unique_ptr<std::string>(new std::string(stream.str()));
 }

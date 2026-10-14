@@ -11,6 +11,9 @@ use std::{
     },
 };
 
+// cxx generates the wrapper of `Message_CancellableProgress_new` without the `# Safety`
+// section its declaration documents.
+#[allow(clippy::missing_safety_doc)]
 #[cxx::bridge]
 mod inner {
     /// Severity of OpenCASCADE's diagnostic messages.
@@ -67,10 +70,15 @@ mod inner {
 
         /// Replaces the default messenger's printers with one that passes every message at or
         /// above `level` to the handler set with [`set_message_handler`](super::set_message_handler).
+        ///
+        /// OpenCASCADE does not synchronize its printer list: do not call this while another
+        /// thread may be sending a message (call it once, at startup, and change the handler
+        /// instead).
         pub fn Message_use_rust_printer(level: Message_Gravity);
 
         /// Replaces the default messenger's printers with one that writes messages at or above
-        /// `level` to stdout, or to stderr when `to_stderr` is set.
+        /// `level` to stdout, or to stderr when `to_stderr` is set. The same caveat as for
+        /// [`Message_use_rust_printer`] applies.
         pub fn Message_use_stream_printer(to_stderr: bool, level: Message_Gravity);
     }
 }

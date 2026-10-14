@@ -591,31 +591,35 @@ fn occt_message_level_can_be_toggled() {
 
 #[test]
 fn sandboxed_engines_cannot_touch_files() {
-    let names = |engine: &Engine| -> Vec<String> {
-        engine.gen_fn_signatures(false).into_iter().map(|signature| signature).collect()
-    };
-    let full = names(&engine());
-    let sandboxed = names(&sandboxed_engine());
-    for name in FILE_FUNCTIONS {
-        let declared =
-            |signatures: &[String]| signatures.iter().any(|s| s.starts_with(&format!("{name}(")));
-        assert!(declared(&full), "{name} is registered by `register`");
-        assert!(!declared(&sandboxed), "{name} is registered by `register_sandboxed`");
-    }
-    // Everything else is the same.
-    let file_functions: Vec<_> = full
-        .iter()
-        .filter(|s| FILE_FUNCTIONS.iter().any(|n| s.starts_with(&format!("{n}("))))
-        .collect();
-    assert_eq!(full.len() - file_functions.len(), sandboxed.len());
-
     let dir = temp_dir();
-    let path = dir.path().join("x.step").to_string_lossy().replace('\\', "/");
-    let error = sandboxed_engine()
-        .eval::<Dynamic>(&format!("box(1, 1, 1).export_step(\"{path}\")"))
-        .unwrap_err();
-    assert!(error.to_string().contains("Function not found"), "{error}");
-    assert!(!dir.path().join("x.step").exists());
+    // A directory that does not exist, so that no call can create a file.
+    let p = |name: &str| dir.path().join("missing").join(name).to_string_lossy().replace('\\', "/");
+    let calls = [
+        ("load", format!("load(\"{}\")", p("a.step"))),
+        ("import_step", format!("import_step(\"{}\")", p("a.step"))),
+        ("import_iges", format!("import_iges(\"{}\")", p("a.igs"))),
+        ("import_brep", format!("import_brep(\"{}\")", p("a.brep"))),
+        ("save", format!("box(1, 1, 1).save(\"{}\")", p("a.step"))),
+        ("export_step", format!("box(1, 1, 1).export_step(\"{}\")", p("a.step"))),
+        ("export_iges", format!("box(1, 1, 1).export_iges(\"{}\")", p("a.igs"))),
+        ("export_brep", format!("box(1, 1, 1).export_brep(\"{}\")", p("a.brep"))),
+        ("export_stl", format!("box(1, 1, 1).export_stl(\"{}\")", p("a.stl"))),
+        ("export_stl", format!("box(1, 1, 1).export_stl(\"{}\", 0.1)", p("a.stl"))),
+    ];
+    for name in FILE_FUNCTIONS {
+        assert!(calls.iter().any(|(n, _)| *n == name), "{name} is not checked");
+    }
+    for (name, call) in &calls {
+        let sandboxed = sandboxed_engine().eval::<Dynamic>(call).unwrap_err().to_string();
+        assert!(sandboxed.contains("Function not found"), "{name}: {sandboxed}");
+        // The full engine has the function; it fails only because the directory is missing.
+        let full = engine().eval::<Dynamic>(call).unwrap_err().to_string();
+        assert!(
+            !full.contains("Function not found") && full.contains("failed to"),
+            "{name}: {full}"
+        );
+    }
+    assert!(!dir.path().join("missing").exists());
     let volume: f64 = sandboxed_engine().eval("box(1, 2, 3).volume()").unwrap();
     assert_close(volume, 6.0, 1e-9);
 }
@@ -627,7 +631,7 @@ fn errors_carry_their_kind() {
     };
     assert_eq!(tag("box(0, 1, 1)"), ErrorKind::InvalidArgument.tag());
     assert_eq!(tag("box(1, 1, 1).faces()[10]"), ErrorKind::IndexOutOfRange.tag());
-    assert_eq!(tag("box(1, 1, 1).faces(\"%NOPE\")"), ErrorKind::Selector.tag());
+    assert_eq!(tag("box(1, 1, 1).faces(\"(>Z\")"), ErrorKind::Selector.tag());
     assert_eq!(tag("throw \"mine\""), 0, "values a script throws carry no kind");
     // Messages are unchanged.
     let message = run::<String>("let m = \"\"; try { box(0, 1, 1); } catch (e) { m = e; } m");
@@ -635,7 +639,7 @@ fn errors_carry_their_kind() {
 
     let error = engine().eval::<Dynamic>("box(1, 1, 1).fillet(50)").unwrap_err();
     assert!(matches!(error_kind(&error), Some(ErrorKind::Occt | ErrorKind::OperationFailed)));
-    let error = engine().eval::<Dynamic>("box(1, 1, -1)").unwrap_err();
+    let error = engine().eval::<Dynamic>("box(1, 1, 0)").unwrap_err();
     assert_eq!(error_kind(&error), Some(ErrorKind::InvalidArgument));
     let error = engine().eval::<Dynamic>("no_such_function()").unwrap_err();
     assert_eq!(error_kind(&error), None);
