@@ -1,0 +1,17 @@
+name: Install OpenCASCADE
+description: >
+  Installs the prebuilt OpenCASCADE 7.8.1 from conda-forge (with micromamba) and points the build
+  at it: DEP_OCCT_ROOT for CMake, LD_LIBRARY_PATH for the test binaries, which link it dynamically.
+
+runs:
+  using: composite
+  steps:
+    - name: Install OpenCASCADE 7.8.1 from conda-forge
+      shell: bash
+      run: |
+        curl -fsSL https://micro.mamba.pm/api/micromamba/linux-64/latest \
+          | tar -xj -C "$RUNNER_TEMP" bin/micromamba
+        MAMBA_ROOT_PREFIX="$RUNNER_TEMP/mamba" "$RUNNER_TEMP/bin/micromamba" create -y -q \
+          -p "$RUNNER_TEMP/occt" -c conda-forge "occt=7.8.1=novtk*"
+        echo "DEP_OCCT_ROOT=$RUNNER_TEMP/occt" >> "$GITHUB_ENV"
+        echo "LD_LIBRARY_PATH=$RUNNER_TEMP/occt/lib" >> "$GITHUB_ENV"

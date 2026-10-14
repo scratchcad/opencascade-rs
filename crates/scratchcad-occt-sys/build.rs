@@ -113,10 +113,17 @@ impl OcctConfig {
             std::panic::catch_unwind(|| cmake::Config::new("OCCT").register_dep("occt").build());
 
         #[cfg(feature = "builtin")]
-        let dst = dst.expect("Builtin OpenCASCADE library not found.");
+        let dst = dst.unwrap_or_else(|_| panic!("Builtin OpenCASCADE library not found."));
 
         #[cfg(not(feature = "builtin"))]
-        let dst = dst.expect("Pre-installed OpenCASCADE library not found. You can use `builtin` feature if you do not want to install OCCT libraries system-wide.");
+        let dst = dst.unwrap_or_else(|_| {
+            panic!(
+                "OpenCASCADE 7.8 not found. Install it (for example from conda-forge: `micromamba \
+                 create -p /opt/occt -c conda-forge \"occt=7.8.1=novtk*\"`, or Debian 13's \
+                 libocct-*-dev packages) and set DEP_OCCT_ROOT to its prefix if CMake cannot find \
+                 it, or enable the `builtin` feature to compile it from source."
+            )
+        });
 
         let cfg = std::fs::read_to_string(dst.join("share").join("occ_info.txt"))
             .expect("Something went wrong when detecting OpenCASCADE library.");

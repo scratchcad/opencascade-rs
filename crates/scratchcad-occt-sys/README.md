@@ -16,5 +16,7 @@ Low-level [cxx](https://cxx.rs) bindings to OpenCASCADE 7.8, used by `scratchcad
   range stop when the flag is set from any thread. `Message_use_rust_printer` replaces OCCT's
   stdout printer with one that forwards messages to a Rust handler.
 
-OpenCASCADE itself comes from the unmodified [`occt-sys`](https://crates.io/crates/occt-sys) crate
-when the `builtin` feature is enabled; otherwise a system installation is located with CMake.
+By default an installed OpenCASCADE 7.8 is located with CMake (set `DEP_OCCT_ROOT` to its prefix
+if it is not in a standard location; conda-forge's `occt=7.8.1` works). With the `builtin`
+feature, OpenCASCADE is compiled from source by the unmodified
+[`occt-sys`](https://crates.io/crates/occt-sys) crate instead.

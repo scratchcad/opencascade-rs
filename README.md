@@ -28,8 +28,8 @@ plate.write_step("plate.step")?;
 | [`scratchcad-occt-rhai`](https://github.com/scratchcad/scratchcad-occt-rs/tree/main/crates/scratchcad-occt-rhai) | The Rhai scripting API and a matching Rust API. |
 | [`scratchcad-occt-sys`](https://github.com/scratchcad/scratchcad-occt-rs/tree/main/crates/scratchcad-occt-sys) | Low-level [cxx](https://cxx.rs) bindings to OpenCASCADE 7.8 that turn C++ exceptions into Rust `Result`s. |
 
-OpenCASCADE itself is built from source by the [`occt-sys`](https://crates.io/crates/occt-sys)
-crate, or linked from a system installation.
+The crates link an installed OpenCASCADE 7.8 (see [Building](#building)), or compile it from
+source with the `builtin` feature.
 
 ## Usage
 
@@ -87,12 +87,28 @@ to move a deep copy to another thread, and do not enable Rhai's `sync` feature.
 
 ## Building
 
-You need a Rust toolchain, CMake and a C++ compiler. By default OpenCASCADE is compiled from
-source, which takes roughly 20 minutes the first time. To use a system installation of
-OpenCASCADE 7.8 instead, build with `--no-default-features` (and set `DEP_OCCT_ROOT` to its install
-prefix if CMake cannot find it).
+You need a Rust toolchain, CMake, a C++ compiler and OpenCASCADE 7.8 (7.9 is accepted but
+untested; 7.6 and older lack the data-exchange libraries the bindings link). CMake looks for it in
+the usual system locations and under `DEP_OCCT_ROOT`. Two prebuilt sources:
 
-Run the tests with `cargo test --workspace`.
+* **conda-forge**, for Linux (x86-64 and arm64), macOS and Windows. With
+  [micromamba](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html):
+
+  ```sh
+  micromamba create -y -p /opt/occt -c conda-forge "occt=7.8.1=novtk*"
+  export DEP_OCCT_ROOT=/opt/occt
+  export LD_LIBRARY_PATH=/opt/occt/lib   # the libraries are shared; programs need to find them
+  ```
+
+  This is what CI uses.
+* **Debian 13 (trixie)** and Ubuntu 25.04 or newer: `apt install libocct-foundation-dev
+  libocct-modeling-data-dev libocct-modeling-algorithms-dev libocct-ocaf-dev
+  libocct-data-exchange-dev`. (Debian 12 and Ubuntu 24.04 only have 7.6.)
+
+To compile OpenCASCADE from source instead (about 20 minutes the first time; the result is linked
+statically), enable the `builtin` feature: `cargo build --features builtin`.
+
+Run the tests with `cargo test --workspace --all-targets`.
 
 ## Credits
 
