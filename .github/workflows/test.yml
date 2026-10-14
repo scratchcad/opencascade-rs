@@ -26,15 +26,11 @@ jobs:
           components: llvm-tools-preview
       - name: Cache Rust Dependencies
         uses: Swatinem/rust-cache@v2
-      # The static OpenCASCADE build (from the `occt-sys` crate) takes the bulk of the build time.
-      - uses: ./.github/actions/build-occt
+      # The prebuilt OpenCASCADE from conda-forge, which the crates link by default.
+      - uses: ./.github/actions/install-occt
       - run: cargo test --workspace --all-targets
       - uses: taiki-e/install-action@cargo-llvm-cov
-      # Coverage reuses the OpenCASCADE installation built above instead of building it again
-      # in llvm-cov's separate target directory.
       - name: Coverage
-        env:
-          DEP_OCCT_ROOT: ${{ github.workspace }}/target/OCCT
         run: >
-          cargo llvm-cov --no-default-features -p scratchcad-occt-rhai -p scratchcad-occt-sys
+          cargo llvm-cov -p scratchcad-occt-rhai -p scratchcad-occt-sys
           --summary-only --show-missing-lines --fail-under-lines 95

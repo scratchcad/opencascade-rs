@@ -26,6 +26,5 @@ jobs:
           components: clippy
       - name: Cache Rust Dependencies
         uses: Swatinem/rust-cache@v2
-      # The static OpenCASCADE build (from the `occt-sys` crate) takes the bulk of the build time.
-      - uses: ./.github/actions/build-occt
+      - uses: ./.github/actions/install-occt
       - run: cargo clippy --workspace --all-targets -- -D warnings

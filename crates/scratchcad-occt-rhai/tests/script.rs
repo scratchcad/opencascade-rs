@@ -4,9 +4,9 @@ mod common;
 
 use common::{assert_close, assert_vec_close, temp_dir, v};
 use scratchcad_occt_rhai::{
-    engine, eval, eval_shape,
-    rhai::{Array, Dynamic, Engine, INT},
-    BoundingBox, DVec3, Mesh, Plane, Selection, Shape, ShapeType, Sketch,
+    engine, error_kind, eval, eval_shape,
+    rhai::{Array, Dynamic, Engine, Scope, INT},
+    BoundingBox, DVec3, ErrorKind, Mesh, Plane, Selection, Shape, ShapeType, Sketch,
 };
 use std::f64::consts::PI;
 
@@ -503,40 +503,20 @@ fn bounding_boxes_and_meshes() {
 }
 
 #[test]
-fn files() {
+fn hosts_read_and_write_files_for_scripts() {
     let dir = temp_dir();
-    let p = |name: &str| dir.path().join(name).to_string_lossy().replace('\\', "/");
-    let script = format!(
-        r#"
-        let part = box(1, 2, 3);
-        part.export_step("{step}");
-        part.export_iges("{iges}");
-        part.export_brep("{brep}");
-        part.export_stl("{stl}");
-        part.export_stl("{stl2}", 0.5);
-        part.save("{any}");
-        [import_step("{step}").volume(), import_brep("{brep}").volume(), load("{any}").volume(),
-         import_iges("{iges}").faces().len()]
-        "#,
-        step = p("a.step"),
-        iges = p("a.igs"),
-        brep = p("a.brep"),
-        stl = p("a.stl"),
-        stl2 = p("b.stl"),
-        any = p("c.stp"),
-    );
-    let results = run::<Array>(&script);
-    assert_close(results[0].as_float().unwrap(), 6.0, 1e-6);
-    assert_close(results[1].as_float().unwrap(), 6.0, 1e-9);
-    assert_close(results[2].as_float().unwrap(), 6.0, 1e-6);
-    assert_eq!(results[3].as_int().unwrap(), 6);
-    assert!(dir.path().join("a.stl").exists() && dir.path().join("b.stl").exists());
-    fails(
-        &format!("box(1, 1, 1).export_stl(\"{}\", \"fine\")", p("x.stl")),
-        "tolerance must be a number",
-    );
-    fails(&format!("load(\"{}\")", p("missing.step")), "failed to read STEP file");
-    fails(&format!("box(1, 1, 1).save(\"{}\")", p("x.obj")), "unsupported file type");
+    let input = dir.path().join("in.step");
+    Shape::make_box(1.0, 2.0, 3.0).unwrap().write_step(&input).unwrap();
+
+    let mut scope = Scope::new();
+    scope.push("part", Shape::read_step(&input).unwrap());
+    let result: Shape =
+        engine().eval_with_scope(&mut scope, "part.translate([1, 0, 0]).fillet(0.1)").unwrap();
+    let output = dir.path().join("out.brep");
+    result.export(&output, 0.1).unwrap();
+    let back = Shape::import(&output).unwrap();
+    assert_close(back.bounding_box().unwrap().min.x, 1.0, 1e-6);
+    assert!(back.volume().unwrap() < 6.0);
 }
 
 #[test]
@@ -585,4 +565,133 @@ fn occt_message_level_can_be_toggled() {
     scratchcad_occt_rhai::set_occt_messages(false);
     assert!(scratchcad_occt_rhai::ffi::message::Message_default_printer_count() >= 1);
     scratchcad_occt_rhai::set_occt_messages(true);
+}
+
+#[test]
+fn scripts_cannot_touch_files() {
+    let dir = temp_dir();
+    let p = |name: &str| dir.path().join(name).to_string_lossy().replace('\\', "/");
+    std::fs::write(dir.path().join("a.step"), Shape::cube(1.0).unwrap().to_step().unwrap())
+        .unwrap();
+    // Every file function earlier versions registered, and a few other likely names.
+    let calls = [
+        format!("load(\"{}\")", p("a.step")),
+        format!("import_step(\"{}\")", p("a.step")),
+        format!("import_iges(\"{}\")", p("a.igs")),
+        format!("import_brep(\"{}\")", p("a.brep")),
+        format!("read_step(\"{}\")", p("a.step")),
+        format!("box(1, 1, 1).save(\"{}\")", p("b.step")),
+        format!("box(1, 1, 1).export_step(\"{}\")", p("b.step")),
+        format!("box(1, 1, 1).export_iges(\"{}\")", p("b.igs")),
+        format!("box(1, 1, 1).export_brep(\"{}\")", p("b.brep")),
+        format!("box(1, 1, 1).export_stl(\"{}\")", p("b.stl")),
+        format!("box(1, 1, 1).export_stl(\"{}\", 0.1)", p("b.stl")),
+        format!("box(1, 1, 1).write_step(\"{}\")", p("b.step")),
+    ];
+    // `engine()`, and an engine of the caller's own given everything through `register`.
+    let mut own = Engine::new();
+    scratchcad_occt_rhai::register(&mut own);
+    for engine in [engine(), own] {
+        for call in &calls {
+            let error = engine.eval::<Dynamic>(call).unwrap_err().to_string();
+            assert!(error.contains("Function not found"), "{call}: {error}");
+        }
+    }
+    let written: Vec<_> = std::fs::read_dir(dir.path()).unwrap().collect();
+    assert_eq!(written.len(), 1, "only the file the test wrote itself");
+}
+
+#[test]
+fn scripts_cannot_import_files() {
+    let dir = temp_dir();
+    std::fs::write(dir.path().join("lib.rhai"), "export const ANSWER = 42;").unwrap();
+    let path = dir.path().join("lib").to_string_lossy().replace('\\', "/");
+    let script = format!("import \"{path}\" as lib; lib::ANSWER");
+    // Rhai's default engine reads the module from disk...
+    assert_eq!(Engine::new().eval::<INT>(&script).unwrap(), 42);
+    // ...but not once this crate is registered, whoever created the engine.
+    let mut own = Engine::new();
+    scratchcad_occt_rhai::register(&mut own);
+    for engine in [engine(), own] {
+        let error = engine.eval::<INT>(&script).unwrap_err().to_string();
+        assert!(error.contains("Module not found"), "{error}");
+    }
+}
+
+#[test]
+fn scripts_cannot_forge_error_kinds() {
+    let forge = "let e = \"fake\"; e.tag = 9; throw e;";
+    // Rhai's default engine lets scripts tag their values...
+    let error = Engine::new().eval::<Dynamic>(forge).unwrap_err();
+    assert_eq!(error_kind(&error), Some(ErrorKind::Cancelled));
+    // ...but not once this crate is registered, whoever created the engine.
+    let mut own = Engine::new();
+    scratchcad_occt_rhai::register(&mut own);
+    for engine in [engine(), own] {
+        for script in [forge, "let e = \"fake\"; e.set_tag(9); e", "set_tag(\"fake\", 9)"] {
+            let error = engine.eval::<Dynamic>(script).unwrap_err();
+            assert_eq!(error_kind(&error), Some(ErrorKind::InvalidArgument), "{script}");
+            assert!(error.to_string().contains("tags are read-only"), "{script}: {error}");
+        }
+        // Tags can still be read, and a caught error keeps its kind when re-thrown.
+        assert_eq!(engine.eval::<INT>("let e = \"x\"; e.tag").unwrap(), 0);
+        let error =
+            engine.eval::<Dynamic>("try { box(0, 1, 1) } catch (e) { throw e }").unwrap_err();
+        assert_eq!(error_kind(&error), Some(ErrorKind::InvalidArgument));
+    }
+}
+
+#[test]
+fn errors_carry_their_kind() {
+    let tag = |script: &str| {
+        run::<INT>(&format!("let t = -1; try {{ {script}; }} catch (e) {{ t = e.tag; }} t"))
+    };
+    assert_eq!(tag("box(0, 1, 1)"), ErrorKind::InvalidArgument.tag());
+    assert_eq!(tag("box(1, 1, 1).faces()[10]"), ErrorKind::IndexOutOfRange.tag());
+    assert_eq!(tag("box(1, 1, 1).faces(\"(>Z\")"), ErrorKind::Selector.tag());
+    assert_eq!(tag("throw \"mine\""), 0, "values a script throws carry no kind");
+    // Messages are unchanged.
+    let message = run::<String>("let m = \"\"; try { box(0, 1, 1); } catch (e) { m = e; } m");
+    assert!(message.contains("box x size must be positive"), "{message}");
+
+    let error = engine().eval::<Dynamic>("box(1, 1, 1).fillet(50)").unwrap_err();
+    assert!(matches!(error_kind(&error), Some(ErrorKind::Occt | ErrorKind::OperationFailed)));
+    let error = engine().eval::<Dynamic>("box(1, 1, 0)").unwrap_err();
+    assert_eq!(error_kind(&error), Some(ErrorKind::InvalidArgument));
+    let error = engine().eval::<Dynamic>("no_such_function()").unwrap_err();
+    assert_eq!(error_kind(&error), None);
+}
+
+#[test]
+fn point_queries_and_mesh_options_in_scripts() {
+    assert!(run::<bool>("box(2, 2, 2).contains([1, 1, 1])"));
+    assert!(!run::<bool>("box(2, 2, 2).contains(vec3(3, 1, 1))"));
+    assert_eq!(run::<String>("box(2, 2, 2).classify([1, 1, 1])"), "inside");
+    assert_eq!(run::<String>("box(2, 2, 2).classify([2, 1, 1])"), "on");
+    assert_eq!(run::<String>("box(2, 2, 2).classify([5, 1, 1])"), "outside");
+    fails("circle(1).contains([0, 0, 0])", "expected solid");
+    fails("box(1, 1, 1).contains(\"middle\")", "point must be a vec3");
+
+    let coarse = run::<INT>("(cylinder(1, 1) - cylinder(0.2, 1)).mesh(0.1).triangle_count");
+    let fine = run::<INT>("(cylinder(1, 1) - cylinder(0.2, 1)).mesh(0.1, 5).triangle_count");
+    assert!(fine > coarse);
+    fails("box(1, 1, 1).mesh(0.1, \"fine\")", "angular tolerance must be a number");
+    assert_eq!(run::<INT>("box(1, 1, 1).mesh(0.1).welded().vertex_count"), 8);
+}
+
+#[test]
+fn bundled_examples_run() {
+    let examples = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("examples");
+    let mut count = 0;
+    for entry in std::fs::read_dir(&examples).unwrap() {
+        let path = entry.unwrap().path();
+        if path.extension().is_some_and(|e| e == "rhai") {
+            let source = std::fs::read_to_string(&path).unwrap();
+            let shape = eval_shape(&source).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+            assert!(shape.is_valid(), "{} produced an invalid shape", path.display());
+            assert!(shape.volume().unwrap() > 0.0, "{}", path.display());
+            count += 1;
+        }
+    }
+    assert!(count >= 4);
 }

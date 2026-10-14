@@ -5,7 +5,14 @@
 //! * A Rust API built around cheap-to-clone, immutable handle types ([`Shape`], [`Selection`],
 //!   [`Sketch`], [`Plane`]) whose operations all return [`Result`] and chain naturally.
 //! * [`register`], which exposes that API to a Rhai [`Engine`] with
-//!   script-friendly argument conversions.
+//!   script-friendly argument conversions. Scripts model, measure and mesh; they cannot read or
+//!   write files.
+//!
+//! Files are the host's job: shapes convert to and from STEP, IGES, BREP and (write-only) STL in
+//! memory ([`Shape::to_bytes`], [`Shape::from_bytes`]; IGES is read only from files) or as files
+//! ([`Shape::export`], [`Shape::import`]). Long-running OpenCASCADE algorithms
+//! can be stopped from another thread with a [`CancelToken`] (see [`with_cancel`]), and
+//! OpenCASCADE's console output can be redirected with [`set_message_handler`].
 //!
 //! ```no_run
 //! let part = scratchcad_occt_rhai::eval_shape(r#"
@@ -14,6 +21,18 @@
 //!     (plate - hole).chamfer(0.5, ">Z")
 //! "#)?;
 //! part.write_step("plate.step")?;
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+//!
+//! A script works on a shape the host read from a file when the host passes it in:
+//!
+//! ```no_run
+//! use scratchcad_occt_rhai::{engine, rhai::Scope, Shape};
+//!
+//! let mut scope = Scope::new();
+//! scope.push("part", Shape::read_step("bracket.step")?);
+//! let drilled: Shape = engine().eval_with_scope(&mut scope, "part - cylinder(3, 50)")?;
+//! drilled.write_step("drilled.step")?;
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
@@ -31,42 +50,37 @@
 //! }
 //! ```
 
-pub mod cli;
+pub mod cancel;
 mod error;
 mod io;
 pub mod math;
 mod mesh;
+pub mod messages;
 pub mod script;
 mod selection;
 pub mod selector;
 mod shape;
 mod sketch;
 
-pub use error::{Error, Result};
+pub use cancel::{with_cancel, CancelToken};
+pub use error::{error_kind, Error, ErrorKind, Result};
 pub use glam::{DVec2, DVec3};
+pub use io::Format;
 pub use math::Plane;
-pub use mesh::Mesh;
+pub use mesh::{Mesh, MeshOptions};
+pub use messages::{set_message_handler, set_occt_messages, MessageLevel};
 pub use rhai;
 pub use scratchcad_occt_sys as ffi;
 pub use script::{register, to_shape};
 pub use selection::{Selection, TOLERANCE};
-pub use shape::{BoundingBox, Shape, ShapeType};
+pub use shape::{BoundingBox, DetachedShape, PointLocation, Shape, ShapeType, CLASSIFY_TOLERANCE};
 pub use sketch::Sketch;
 
 use rhai::{Dynamic, Engine, EvalAltResult};
 
-/// Enables or disables OpenCASCADE's own console output (such as the STEP/IGES transfer
-/// statistics it prints to stdout). Failures are always printed.
-pub fn set_occt_messages(enabled: bool) {
-    use ffi::message::{Message_Gravity, Message_set_default_trace_level};
-    Message_set_default_trace_level(if enabled {
-        Message_Gravity::Message_Info
-    } else {
-        Message_Gravity::Message_Fail
-    });
-}
-
-/// A Rhai engine with every type and function of this crate registered.
+/// A Rhai engine with every type and function of this crate registered (see [`register`]).
+/// Scripts run on it cannot touch the filesystem; set Rhai's own limits (such as
+/// `Engine::set_max_operations`) before running scripts you do not trust.
 pub fn engine() -> Engine {
     let mut engine = Engine::new();
     register(&mut engine);

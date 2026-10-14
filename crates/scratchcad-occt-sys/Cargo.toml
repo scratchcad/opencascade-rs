@@ -5,7 +5,7 @@
 name = "scratchcad-occt-sys"
 description = "Rust bindings to the OpenCascade CAD Kernel, with C++ exception handling"
 license = "LGPL-2.1-only"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 repository = "https://github.com/scratchcad/scratchcad-occt-rs"
 readme = "README.md"
@@ -21,4 +21,6 @@ cxx-build = "1"
 occt-sys = { version = "=7.8.1", optional = true }
 
 [features]
+# Build OpenCASCADE from source (via `occt-sys`, about 20 minutes) instead of linking an installed
+# OpenCASCADE 7.8, which is the default; see the README.
 builtin = ["occt-sys"]

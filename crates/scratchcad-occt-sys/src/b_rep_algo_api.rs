@@ -73,5 +73,29 @@ mod inner {
         ) -> Result<()>;
         pub fn IsDone(self: &BRepAlgoAPI_Section) -> bool;
         pub fn SectionEdges(self: Pin<&mut BRepAlgoAPI_Section>) -> Result<&TopTools_ListOfShape>;
+
+        // One-shot booleans in OpenCASCADE's non-destructive ("safe processing") mode: the
+        // arguments are never modified, and the operation stops early when `progress` asks it
+        // to. The result is null when the operation fails.
+        pub fn BRepAlgoAPI_fuse(
+            a: &TopoDS_Shape,
+            b: &TopoDS_Shape,
+            progress: &Message_ProgressRange,
+        ) -> Result<UniquePtr<TopoDS_Shape>>;
+        pub fn BRepAlgoAPI_cut(
+            a: &TopoDS_Shape,
+            b: &TopoDS_Shape,
+            progress: &Message_ProgressRange,
+        ) -> Result<UniquePtr<TopoDS_Shape>>;
+        pub fn BRepAlgoAPI_common(
+            a: &TopoDS_Shape,
+            b: &TopoDS_Shape,
+            progress: &Message_ProgressRange,
+        ) -> Result<UniquePtr<TopoDS_Shape>>;
+        pub fn BRepAlgoAPI_section(
+            a: &TopoDS_Shape,
+            b: &TopoDS_Shape,
+            progress: &Message_ProgressRange,
+        ) -> Result<UniquePtr<TopoDS_Shape>>;
     }
 }

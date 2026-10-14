@@ -1,6 +1,7 @@
 //! The [`Shape`] handle and every operation on it.
 
 use crate::{
+    cancel::{failed, progress},
     error::{invalid, Error, Result},
     math::{
         self, axis1, axis2, fmt_vec, from_pnt, from_vec, point, require_finite,
@@ -99,22 +100,85 @@ impl fmt::Display for ShapeType {
 
 /// An immutable, cheaply clonable handle to an OpenCASCADE shape.
 ///
-/// Cloning a `Shape` only bumps a reference count. Every operation returns a *new* shape and
-/// leaves its inputs untouched, which makes shapes safe to share between script variables and
-/// lets calls be chained: `Shape::make_box(10.0, 10.0, 10.0)?.fillet_all(1.0)?.translate(..)`.
+/// Cloning a `Shape` only bumps a reference count. Every operation returns a *new* shape, which
+/// makes shapes safe to share between script variables and lets calls be chained:
+/// `Shape::make_box(10.0, 10.0, 10.0)?.fillet_all(1.0)?.translate(..)`.
 ///
 /// A single type covers every topological kind (vertex, edge, wire, face, shell, solid,
 /// compound); operations that need a specific kind check it at runtime and return
 /// [`Error::WrongShapeType`]. A `Shape` is never null.
+///
+/// # Threads
+///
+/// `Shape` is neither `Send` nor `Sync`. OpenCASCADE shapes share sub-shapes (an extrusion
+/// shares its profile, a fillet the untouched faces of its input), and many of its algorithms
+/// annotate the sub-shapes of their *inputs* in place: they attach parameter curves to edges and
+/// raise vertex and edge tolerances. Two threads working on shapes that share sub-shapes would
+/// race on that data. To hand a shape to another thread, [`detach`](Shape::detach) it: that
+/// makes a deep copy sharing nothing with any other shape. (For the same reason, do not enable
+/// Rhai's `sync` feature: it requires every registered type to be `Send + Sync`.)
 #[derive(Clone)]
 pub struct Shape {
     inner: Rc<UniquePtr<ffi::topo_ds::TopoDS_Shape>>,
 }
 
-/// Parameters for making a shape from a shape-producing OCCT algorithm.
-fn progress() -> UniquePtr<ffi::message::Message_ProgressRange> {
-    ffi::message::Message_ProgressRange_new()
+/// A deep copy of a [`Shape`] that can be moved to another thread, where
+/// [`attach`](DetachedShape::attach) turns it back into a `Shape`.
+///
+/// It shares no topology or geometry with any other shape, so nothing another thread does can
+/// touch it. It cannot be cloned or used until it is attached.
+pub struct DetachedShape(UniquePtr<ffi::topo_ds::TopoDS_Shape>);
+
+// SAFETY: `Shape::detach` builds the shape with `BRepBuilderAPI_Copy` copying geometry, so it
+// shares no topology, geometry or triangulation with any shape that stays behind. What it does
+// share (location datums, type descriptors) is immutable after construction and
+// reference-counted with atomic counters (`Standard_Transient::myRefCount_` is a
+// `std::atomic_int`). `DetachedShape` gives no access to the shape until `attach` moves it into
+// a thread-local `Shape`.
+unsafe impl Send for DetachedShape {}
+
+impl DetachedShape {
+    /// The shape, now owned by the current thread. No copy is made.
+    pub fn attach(self) -> Shape {
+        // `detach` only wraps non-null shapes.
+        Shape { inner: Rc::new(self.0) }
+    }
 }
+
+impl fmt::Debug for DetachedShape {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("DetachedShape")
+    }
+}
+
+/// Where a point lies relative to a solid; see [`Shape::classify`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PointLocation {
+    Inside,
+    Outside,
+    /// On the boundary, within [`CLASSIFY_TOLERANCE`].
+    OnBoundary,
+}
+
+impl PointLocation {
+    /// The name used in scripts: `"inside"`, `"outside"` or `"on"`.
+    pub fn name(self) -> &'static str {
+        match self {
+            PointLocation::Inside => "inside",
+            PointLocation::Outside => "outside",
+            PointLocation::OnBoundary => "on",
+        }
+    }
+}
+
+impl fmt::Display for PointLocation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.name())
+    }
+}
+
+/// How close to a solid's boundary a point counts as [on it](PointLocation::OnBoundary).
+pub const CLASSIFY_TOLERANCE: f64 = 1e-7;
 
 impl Shape {
     // ---------------------------------------------------------------------------------------
@@ -160,6 +224,25 @@ impl Shape {
     /// The underlying OCCT shape, for use with `scratchcad-occt-sys` directly.
     pub fn raw(&self) -> &ffi::topo_ds::TopoDS_Shape {
         &self.inner
+    }
+
+    /// A copy with its own topology and geometry, sharing nothing with this shape. Sub-shapes
+    /// keep their exploration order. Triangulations are not copied.
+    pub fn deep_copy(&self) -> Result<Self> {
+        Self::from_unique(self.copy_raw()?)
+    }
+
+    /// A deep copy that can be moved to another thread; see [`DetachedShape`].
+    pub fn detach(&self) -> Result<DetachedShape> {
+        Ok(DetachedShape(self.copy_raw()?))
+    }
+
+    fn copy_raw(&self) -> Result<UniquePtr<Raw>> {
+        let copy = ffi::b_rep_builder_api::BRepBuilderAPI_copy_shape(self.raw())?;
+        if copy.is_null() || copy.IsNull() {
+            return Err(Error::OperationFailed("copying the shape"));
+        }
+        Ok(copy)
     }
 
     // ---------------------------------------------------------------------------------------
@@ -563,40 +646,38 @@ impl Shape {
     // Booleans
     // ---------------------------------------------------------------------------------------
 
+    /// Runs a boolean operation in OpenCASCADE's non-destructive mode, which leaves both
+    /// arguments unmodified.
+    fn boolean(&self, other: &Shape, name: &'static str, run: BooleanFn) -> Result<UniquePtr<Raw>> {
+        let result = run(self.raw(), other.raw(), &progress())?;
+        if result.is_null() {
+            return Err(failed(name));
+        }
+        Ok(result)
+    }
+
     /// The union of both shapes.
     pub fn fuse(&self, other: &Shape) -> Result<Self> {
-        let mut op = ffi::b_rep_algo_api::BRepAlgoAPI_Fuse_new(self.raw(), other.raw())?;
-        if !op.IsDone() {
-            return Err(Error::OperationFailed("fuse"));
-        }
-        Self::from_algorithm(op.pin_mut().Shape()?)
+        let result = self.boolean(other, "fuse", ffi::b_rep_algo_api::BRepAlgoAPI_fuse)?;
+        Self::from_algorithm(&result)
     }
 
     /// This shape with `other` removed.
     pub fn cut(&self, other: &Shape) -> Result<Self> {
-        let mut op = ffi::b_rep_algo_api::BRepAlgoAPI_Cut_new(self.raw(), other.raw())?;
-        if !op.IsDone() {
-            return Err(Error::OperationFailed("cut"));
-        }
-        Self::from_algorithm(op.pin_mut().Shape()?)
+        let result = self.boolean(other, "cut", ffi::b_rep_algo_api::BRepAlgoAPI_cut)?;
+        Self::from_algorithm(&result)
     }
 
     /// The intersection of both shapes.
     pub fn common(&self, other: &Shape) -> Result<Self> {
-        let mut op = ffi::b_rep_algo_api::BRepAlgoAPI_Common_new(self.raw(), other.raw())?;
-        if !op.IsDone() {
-            return Err(Error::OperationFailed("common"));
-        }
-        Self::from_algorithm(op.pin_mut().Shape()?)
+        let result = self.boolean(other, "common", ffi::b_rep_algo_api::BRepAlgoAPI_common)?;
+        Self::from_algorithm(&result)
     }
 
     /// The edges where both shapes' boundaries intersect.
     pub fn section(&self, other: &Shape) -> Result<Self> {
-        let mut op = ffi::b_rep_algo_api::BRepAlgoAPI_Section_new(self.raw(), other.raw())?;
-        if !op.IsDone() {
-            return Err(Error::OperationFailed("section"));
-        }
-        Self::from_raw(op.pin_mut().Shape()?)
+        let result = self.boolean(other, "section", ffi::b_rep_algo_api::BRepAlgoAPI_section)?;
+        Self::from_raw(&result)
     }
 
     /// The union of all shapes.
@@ -708,6 +789,8 @@ impl Shape {
 
     /// Sweeps the profile (this shape) along a path edge or wire.
     pub fn sweep(&self, path: &Shape) -> Result<Self> {
+        // OpenCASCADE cannot interrupt a sweep, so do not start one that was cancelled.
+        crate::cancel::check()?;
         let spine = match path.shape_type() {
             ShapeType::Wire => path.clone(),
             ShapeType::Edge => Self::wire_from(std::slice::from_ref(path))?,
@@ -732,6 +815,9 @@ impl Shape {
         if sections.len() < 2 {
             return Err(invalid("a loft needs at least 2 sections"));
         }
+        // OpenCASCADE 7.8 ignores the progress range of lofts, fillets and chamfers, so they
+        // cannot be interrupted once started; at least do not start them after a cancel.
+        crate::cancel::check()?;
         let mut make = ffi::b_rep_offset_api::BRepOffsetAPI_ThruSections_new(solid);
         for section in sections {
             let wire = match section.shape_type() {
@@ -743,7 +829,7 @@ impl Shape {
         }
         make.pin_mut().Build(&progress())?;
         if !make.IsDone() {
-            return Err(Error::OperationFailed("loft"));
+            return Err(failed("loft"));
         }
         Self::from_algorithm(make.pin_mut().Shape()?)
     }
@@ -762,15 +848,14 @@ impl Shape {
     pub fn fillet(&self, radius: f64, edges: &[Shape]) -> Result<Self> {
         require_positive(radius, "fillet radius")?;
         self.require_edges(edges, "fillet")?;
+        crate::cancel::check()?;
         let mut make = ffi::b_rep_fillet_api::BRepFilletAPI_MakeFillet_new(self.raw())?;
         for edge in edges {
             make.pin_mut().add_edge(radius, edge.edge()?)?;
         }
-        make.pin_mut()
-            .Build(&progress())
-            .map_err(|e| Error::Occt(format!("fillet: {}", e.what())))?;
+        make.pin_mut().Build(&progress()).map_err(|e| occt_error("fillet", e))?;
         if !make.IsDone() {
-            return Err(Error::OperationFailed("fillet"));
+            return Err(failed("fillet"));
         }
         Self::from_algorithm(make.pin_mut().Shape()?)
     }
@@ -784,15 +869,14 @@ impl Shape {
     pub fn chamfer(&self, distance: f64, edges: &[Shape]) -> Result<Self> {
         require_positive(distance, "chamfer distance")?;
         self.require_edges(edges, "chamfer")?;
+        crate::cancel::check()?;
         let mut make = ffi::b_rep_fillet_api::BRepFilletAPI_MakeChamfer_new(self.raw())?;
         for edge in edges {
             make.pin_mut().add_edge(distance, edge.edge()?)?;
         }
-        make.pin_mut()
-            .Build(&progress())
-            .map_err(|e| Error::Occt(format!("chamfer: {}", e.what())))?;
+        make.pin_mut().Build(&progress()).map_err(|e| occt_error("chamfer", e))?;
         if !make.IsDone() {
-            return Err(Error::OperationFailed("chamfer"));
+            return Err(failed("chamfer"));
         }
         Self::from_algorithm(make.pin_mut().Shape()?)
     }
@@ -844,7 +928,7 @@ impl Shape {
             &progress(),
         )?;
         if !make.IsDone() {
-            return Err(Error::OperationFailed("shell"));
+            return Err(failed("shell"));
         }
         Self::from_algorithm(make.pin_mut().Shape()?)
     }
@@ -880,6 +964,7 @@ impl Shape {
 
     /// Merges coplanar faces and collinear edges left behind by boolean operations.
     pub fn clean(&self) -> Result<Self> {
+        crate::cancel::check()?;
         let mut unify = ffi::shape_upgrade::UnifySameDomain_new(self.raw(), true, true, true)?;
         unify.pin_mut().build()?;
         Self::from_algorithm(unify.shape()?)
@@ -1045,6 +1130,37 @@ impl Shape {
         let a = ffi::b_rep_extrema::BRepExtrema_DistShapeShape_point_on_shape_1(&dist, 1)?;
         let b = ffi::b_rep_extrema::BRepExtrema_DistShapeShape_point_on_shape_2(&dist, 1)?;
         Ok((from_pnt(&a), from_pnt(&b)))
+    }
+
+    /// Whether `p` lies inside, outside or on the boundary of the shape's solids. A point
+    /// inside any of the solids of a compound is inside.
+    pub fn classify(&self, p: DVec3) -> Result<PointLocation> {
+        if !p.is_finite() {
+            return Err(invalid(format!("point must be finite, got {}", fmt_vec(p))));
+        }
+        let solids = self.solids();
+        if solids.is_empty() {
+            return Err(Error::WrongShapeType {
+                expected: "solid (or a shape containing solids)",
+                actual: self.shape_type().name(),
+            });
+        }
+        let mut on_boundary = false;
+        for solid in solids.iter() {
+            use ffi::top_abs::TopAbs_State as State;
+            match ffi::b_rep_class3d::classify_point(solid.raw(), &point(p), CLASSIFY_TOLERANCE)? {
+                State::TopAbs_IN => return Ok(PointLocation::Inside),
+                State::TopAbs_ON => on_boundary = true,
+                State::TopAbs_OUT => {},
+                _ => return Err(failed("point classification")),
+            }
+        }
+        Ok(if on_boundary { PointLocation::OnBoundary } else { PointLocation::Outside })
+    }
+
+    /// Whether `p` lies inside the shape's solids or on their boundary.
+    pub fn contains(&self, p: DVec3) -> Result<bool> {
+        Ok(self.classify(p)? != PointLocation::Outside)
     }
 
     // ---------------------------------------------------------------------------------------
@@ -1227,6 +1343,23 @@ impl fmt::Display for Shape {
                 self.vertices().len()
             ),
         }
+    }
+}
+
+type Raw = ffi::topo_ds::TopoDS_Shape;
+
+/// One of the non-destructive boolean bindings, e.g. `BRepAlgoAPI_fuse`.
+type BooleanFn = fn(
+    &Raw,
+    &Raw,
+    &ffi::message::Message_ProgressRange,
+) -> std::result::Result<UniquePtr<Raw>, cxx::Exception>;
+
+/// An exception from `operation`, or [`Error::Cancelled`] when it was asked to stop.
+fn occt_error(operation: &str, exception: cxx::Exception) -> Error {
+    match Error::from(exception) {
+        Error::Occt(message) => Error::Occt(format!("{operation}: {message}")),
+        other => other,
     }
 }
 

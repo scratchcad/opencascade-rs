@@ -9,24 +9,22 @@
 //! * Angles are in degrees.
 //! * Arguments that pick faces or edges accept a selector string (`">Z"`), a `Selection`, a
 //!   single `Shape` or an array of shapes.
-//! * Every fallible function raises a catchable runtime error.
+//! * Every fallible function raises a catchable runtime error, tagged with its
+//!   [`ErrorKind`](crate::ErrorKind).
+//! * Scripts cannot read or write files; the host does that through the Rust API.
 
 use crate::{
     error::{Error, Result as CrateResult},
     math::{parse_direction, Plane},
-    mesh::Mesh,
+    mesh::{Mesh, MeshOptions},
     selection::Selection,
     shape::{BoundingBox, Shape, ShapeType},
     sketch::Sketch,
 };
 use glam::{DVec2, DVec3};
 use rhai::{Array, Dynamic, Engine, EvalAltResult, FnPtr, NativeCallContext, FLOAT, INT};
-use std::path::Path;
 
 type RhaiResult<T> = std::result::Result<T, Box<EvalAltResult>>;
-
-/// Default STL meshing tolerance used by `export_stl(path)` and `save(path)`.
-pub const DEFAULT_STL_TOLERANCE: f64 = 0.01;
 
 fn invalid(message: impl Into<String>) -> Box<EvalAltResult> {
     Error::InvalidArgument(message.into()).into()
@@ -150,7 +148,16 @@ fn vec_array(vectors: &[DVec3]) -> Array {
 }
 
 /// Registers every type and function of this crate with `engine`.
+///
+/// Scripts get no filesystem access: nothing registered here reads or writes files, and the
+/// engine's module resolver is replaced with one that resolves nothing, so `import "path"` cannot
+/// load script files from disk (as `Engine::new`'s default resolver does). A script can only
+/// model, measure and mesh. Reading and writing files is left to the host, through the Rust API
+/// ([`Shape::to_bytes`], [`Shape::from_bytes`], [`Shape::export`] and friends); to give a script
+/// a shape read from a file, push it into the script's `Scope`. To give scripts modules, set a
+/// resolver of your own (such as Rhai's `StaticModuleResolver`) after calling this.
 pub fn register(engine: &mut Engine) {
+    engine.set_module_resolver(rhai::module_resolvers::DummyModuleResolver::new());
     register_vec3(engine);
     register_plane(engine);
     register_constructors(engine);
@@ -373,18 +380,6 @@ fn register_constructors(engine: &mut Engine) {
         })
         .register_fn("loft", |sections: Dynamic, solid: bool| -> RhaiResult<Shape> {
             Ok(Shape::loft(&shapes(&sections)?, solid)?)
-        })
-        // Files
-        // `import`/`export` are Rhai keywords, hence `load`/`save`.
-        .register_fn("load", |path: &str| -> RhaiResult<Shape> { Ok(Shape::import(path)?) })
-        .register_fn("import_step", |path: &str| -> RhaiResult<Shape> {
-            Ok(Shape::read_step(path)?)
-        })
-        .register_fn("import_iges", |path: &str| -> RhaiResult<Shape> {
-            Ok(Shape::read_iges(path)?)
-        })
-        .register_fn("import_brep", |path: &str| -> RhaiResult<Shape> {
-            Ok(Shape::read_brep(path)?)
         });
 }
 
@@ -413,6 +408,12 @@ fn register_shape(engine: &mut Engine) {
         .register_fn("closest_points", |s: &mut Shape, other: Shape| -> RhaiResult<Array> {
             let (a, b) = s.closest_points(&other)?;
             Ok(vec_array(&[a, b]))
+        })
+        .register_fn("contains", |s: &mut Shape, p: Dynamic| -> RhaiResult<bool> {
+            Ok(s.contains(vector(&p, "point")?)?)
+        })
+        .register_fn("classify", |s: &mut Shape, p: Dynamic| -> RhaiResult<String> {
+            Ok(s.classify(vector(&p, "point")?)?.name().to_string())
         })
         // Booleans
         .register_fn("fuse", |a: &mut Shape, b: Shape| -> RhaiResult<Shape> { Ok(a.fuse(&b)?) })
@@ -578,28 +579,18 @@ fn register_shape(engine: &mut Engine) {
         .register_fn("normal", |s: &mut Shape| -> RhaiResult<DVec3> { Ok(s.normal()?) })
         .register_fn("plane", |s: &mut Shape| -> RhaiResult<Plane> { Ok(s.plane()?) })
         .register_fn("outer_wire", |s: &mut Shape| -> RhaiResult<Shape> { Ok(s.outer_wire()?) })
-        // Output
+        // Meshing
         .register_fn("mesh", |s: &mut Shape, tolerance: Dynamic| -> RhaiResult<Mesh> {
             Ok(s.mesh(number(&tolerance, "tolerance")?)?)
         })
-        .register_fn("save", |s: &mut Shape, path: &str| -> RhaiResult<()> {
-            Ok(s.export(path, DEFAULT_STL_TOLERANCE)?)
-        })
-        .register_fn("export_step", |s: &mut Shape, path: &str| -> RhaiResult<()> {
-            Ok(s.write_step(path)?)
-        })
-        .register_fn("export_iges", |s: &mut Shape, path: &str| -> RhaiResult<()> {
-            Ok(s.write_iges(path)?)
-        })
-        .register_fn("export_brep", |s: &mut Shape, path: &str| -> RhaiResult<()> {
-            Ok(s.write_brep(path)?)
-        })
-        .register_fn("export_stl", |s: &mut Shape, path: &str| -> RhaiResult<()> {
-            Ok(s.write_stl(path, DEFAULT_STL_TOLERANCE)?)
-        })
-        .register_fn("export_stl", |s: &mut Shape, path: &str, tol: Dynamic| -> RhaiResult<()> {
-            Ok(s.write_stl(Path::new(path), number(&tol, "tolerance")?)?)
-        });
+        .register_fn(
+            "mesh",
+            |s: &mut Shape, tolerance: Dynamic, degrees: Dynamic| -> RhaiResult<Mesh> {
+                let options = MeshOptions::new(number(&tolerance, "tolerance")?)
+                    .angular_tolerance(number(&degrees, "angular tolerance")?);
+                Ok(s.mesh_with(&options)?)
+            },
+        );
 }
 
 fn call_predicate(ctx: &NativeCallContext, f: &FnPtr, shape: &Shape) -> RhaiResult<bool> {
@@ -758,6 +749,13 @@ fn register_sketch(engine: &mut Engine) {
 }
 
 fn register_results(engine: &mut Engine) {
+    // Errors carry their `ErrorKind` as their tag (see `error_kind`), so scripts may read tags but
+    // not set them: a script cannot pass off a value it throws as one of this crate's errors.
+    // These take precedence over the setters in Rhai's standard package.
+    let read_only = |_: &mut Dynamic, _: INT| -> RhaiResult<()> {
+        Err(invalid("tags are read-only: they carry the kind of an error"))
+    };
+    engine.register_fn("set_tag", read_only).register_set("tag", read_only);
     engine
         .register_type_with_name::<BoundingBox>("BoundingBox")
         .register_get("min", |b: &mut BoundingBox| b.min)
@@ -781,6 +779,7 @@ fn register_results(engine: &mut Engine) {
         .register_get("vertex_count", |m: &mut Mesh| m.vertex_count() as INT)
         .register_get("triangle_count", |m: &mut Mesh| m.triangle_count() as INT)
         .register_fn("area", |m: &mut Mesh| m.area())
+        .register_fn("welded", |m: &mut Mesh| m.welded())
         .register_fn("to_string", |m: &mut Mesh| m.to_string())
         .register_fn("to_debug", |m: &mut Mesh| m.to_string());
 }

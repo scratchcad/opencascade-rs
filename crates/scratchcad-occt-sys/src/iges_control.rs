@@ -35,5 +35,10 @@ mod inner {
         ) -> Result<bool>;
         pub fn ComputeModel(self: Pin<&mut IGESControl_Writer>) -> Result<()>;
         pub fn write_iges(writer: Pin<&mut IGESControl_Writer>, filename: String) -> Result<bool>;
+        /// The computed model as IGES text, or null if writing fails. (OpenCASCADE 7.8 can only
+        /// read IGES from files.)
+        pub fn write_iges_bytes(
+            writer: Pin<&mut IGESControl_Writer>,
+        ) -> Result<UniquePtr<CxxString>>;
     }
 }

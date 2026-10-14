@@ -460,7 +460,7 @@ checksum = "d68f2ec51b097e4c1a75b681a8bec621909b5e91f15bb7b840c4f2f7b01148b2"
 
 [[package]]
 name = "scratchcad-occt-rhai"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cxx",
  "glam",
@@ -472,7 +472,7 @@ dependencies = [
 
 [[package]]
 name = "scratchcad-occt-sys"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cmake",
  "cxx",

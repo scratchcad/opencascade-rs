@@ -28,10 +28,21 @@ mod inner {
         TopAbs_EXTERNAL,
     }
 
+    /// Where a point lies relative to a shape.
+    #[repr(u32)]
+    #[derive(Debug)]
+    pub enum TopAbs_State {
+        TopAbs_IN,
+        TopAbs_OUT,
+        TopAbs_ON,
+        TopAbs_UNKNOWN,
+    }
+
     unsafe extern "C++" {
         include!("scratchcad-occt-sys/include/top_abs.hxx");
 
         type TopAbs_Orientation;
         type TopAbs_ShapeEnum;
+        type TopAbs_State;
     }
 }

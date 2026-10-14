@@ -17,6 +17,7 @@ pub mod b_rep_algo_api;
 pub mod b_rep_bnd_lib;
 pub mod b_rep_builder_api;
 pub mod b_rep_check;
+pub mod b_rep_class3d;
 pub mod b_rep_extrema;
 pub mod b_rep_feat;
 pub mod b_rep_fillet_api;

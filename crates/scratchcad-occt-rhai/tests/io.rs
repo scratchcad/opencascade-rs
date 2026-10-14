@@ -1,7 +1,8 @@
 mod common;
 
 use common::{assert_close, err_contains, temp_dir};
-use scratchcad_occt_rhai::{Error, Shape, ShapeType};
+use scratchcad_occt_rhai::{Error, Format, MeshOptions, Shape, ShapeType};
+use std::path::Path;
 
 #[test]
 fn step_round_trip() {
@@ -42,15 +43,68 @@ fn brep_round_trip_is_exact() {
 }
 
 #[test]
-fn stl_export() {
+fn stl_export_is_binary() {
     let dir = temp_dir();
     let path = dir.path().join("part.stl");
     Shape::cube(1.0).unwrap().write_stl(&path, 0.1).unwrap();
-    let text = std::fs::read_to_string(&path).unwrap();
-    assert_eq!(text.matches("facet normal").count(), 12);
+    let bytes = std::fs::read(&path).unwrap();
+    assert_eq!(u32::from_le_bytes(bytes[80..84].try_into().unwrap()), 12);
+    assert_eq!(bytes.len(), 84 + 12 * 50);
     Shape::sphere(1.0).unwrap().export(dir.path().join("ball.stl"), 0.01).unwrap();
     assert!(std::fs::metadata(dir.path().join("ball.stl")).unwrap().len() > 1000);
-    err_contains(Shape::cube(1.0).unwrap().write_stl(&path, 0.0), "STL tolerance");
+    err_contains(Shape::cube(1.0).unwrap().write_stl(&path, 0.0), "mesh tolerance");
+}
+
+#[test]
+fn round_trips_in_memory() {
+    let part = Shape::cube(2.0).unwrap().fillet_all(0.5).unwrap();
+    let volume = part.volume().unwrap();
+    let stl = MeshOptions::new(0.1);
+    for format in [Format::Step, Format::Brep] {
+        let bytes = part.to_bytes(format, &stl).unwrap();
+        let back = Shape::from_bytes(format, &bytes).unwrap();
+        assert_close(back.volume().unwrap(), volume, 1e-6);
+    }
+    // IGES is written in memory but read only from files.
+    let iges = part.to_bytes(Format::Iges, &stl).unwrap();
+    err_contains(Shape::from_bytes(Format::Iges, &iges), "IGES can only be read from a file");
+    let dir = temp_dir();
+    std::fs::write(dir.path().join("part.igs"), &iges).unwrap();
+    assert_eq!(
+        Shape::read_iges(dir.path().join("part.igs")).unwrap().faces().len(),
+        part.faces().len()
+    );
+    assert!(part.to_step().unwrap().starts_with(b"ISO-10303-21;"));
+    assert!(part.to_brep().unwrap().starts_with(b"DBRep_DrawableShape"));
+    let mesh = part.to_bytes(Format::Stl, &stl).unwrap();
+    assert_eq!(mesh, part.to_stl(&stl).unwrap());
+    assert_eq!(mesh.len(), 84 + 50 * part.mesh(0.1).unwrap().triangle_count());
+    err_contains(Shape::from_bytes(Format::Stl, &mesh), "cannot be read as shapes");
+}
+
+#[test]
+fn reading_junk_from_memory_fails() {
+    for format in [Format::Step, Format::Brep] {
+        let result = Shape::from_bytes(format, b"this is not a CAD file");
+        assert!(matches!(result, Err(Error::Io(_))), "{format}: {result:?}");
+    }
+}
+
+#[test]
+fn formats() {
+    for format in Format::ALL {
+        assert_eq!(Format::from_extension(format.extension()), Some(format));
+        assert_eq!(Format::from_extension(&format.extension().to_uppercase()), Some(format));
+        assert_eq!(format.to_string(), format.name());
+        assert!(format.media_type().contains('/'));
+        assert_eq!(format.is_mesh(), format == Format::Stl);
+    }
+    assert_eq!(Format::from_extension("stp"), Some(Format::Step));
+    assert_eq!(Format::from_extension("igs"), Some(Format::Iges));
+    assert_eq!(Format::from_extension("brp"), Some(Format::Brep));
+    assert_eq!(Format::from_extension("obj"), None);
+    assert_eq!(Format::from_path(Path::new("a/b.STP")).unwrap(), Format::Step);
+    err_contains(Format::from_path(Path::new("a/b")), "unsupported file type");
 }
 
 #[test]
@@ -97,6 +151,27 @@ fn empty_shapes_cannot_be_exchanged() {
         if let Err(e) = result {
             assert!(matches!(e, Error::Io(_)), "{e}");
         }
+    }
+}
+
+#[test]
+fn concurrent_conversions() {
+    let handles: Vec<_> = (0..4)
+        .map(|i| {
+            std::thread::spawn(move || {
+                // Shapes are not Send, so each thread builds its own.
+                let part = Shape::cube(1.0 + i as f64).unwrap();
+                let step = Shape::from_step(&part.to_step().unwrap()).unwrap();
+                let brep = Shape::from_brep(&part.to_brep().unwrap()).unwrap();
+                (step.volume().unwrap(), brep.volume().unwrap())
+            })
+        })
+        .collect();
+    for (i, handle) in handles.into_iter().enumerate() {
+        let expected = (1.0 + i as f64).powi(3);
+        let (step, brep) = handle.join().unwrap();
+        assert_close(step, expected, 1e-6);
+        assert_close(brep, expected, 1e-9);
     }
 }
 
