@@ -44,29 +44,4 @@ Tests run against the real OCCT; shared helpers are in `tests/common/mod.rs`.
 * Releasing: publish `scratchcad-occt-sys` before `scratchcad-occt-rhai`, and bump the minor version
   for breaking changes. scratchcad pins an exact version.
 
-## Design rules
-
-These are deliberate; keep them.
-
-1. **Scripts cannot touch the filesystem.** `register` adds no file functions and sets
-   `DummyModuleResolver` so `import` loads nothing. Guarded by `tests/script.rs`.
-2. **Scripts cannot forge error kinds.** Errors carry their `ErrorKind` as the Rhai tag, and
-   `register` overrides Rhai's tag setters.
-3. **`Shape` is not `Send` or `Sync`.** OCCT updates shared sub-shapes in place. Never use `Arc`,
-   `unsafe impl Sync` or Rhai's `sync` feature; `Shape::detach` moves a deep copy between threads.
-4. **Leave inputs alone.** Booleans run non-destructively; meshing works on a `deep_copy`.
-5. **Cancellation.** Give each algorithm a fresh `cancel::progress()`, report failure with
-   `cancel::failed("name")`, call `cancel::check()` before work OCCT cannot interrupt, and end
-   conversions with `finished` (a stopped translator can return part of a model). Covered by
-   `tests/cancel.rs`.
-6. **Process-wide OCCT state.** STEP and IGES conversion holds `io::translator`'s lock. Only
-   `messages.rs` may swap OCCT's printer.
-7. **Errors** go through the crate's `Result`, and their messages stay stable and specific: scratchcad
-   passes them to a language model that fixes the script.
-
-## Gotchas
-
-* OCCT 7.8 cannot read IGES from memory, so IGES is read only from host-named files. Never write a
-  temporary file to work around this.
-* Rhai's `disable_symbol` cannot hide functions, and `gen_fn_signatures` needs the `metadata`
-  feature (off): test for a function by calling it.
+  
