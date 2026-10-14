@@ -107,7 +107,9 @@ impl Error {
 
 /// The [`ErrorKind`] of an error raised by this crate inside a script, looking through the
 /// function calls it passed through. `None` for Rhai's own errors and for values the script
-/// threw itself (unless it re-threw a caught error).
+/// threw itself (unless it re-threw a caught error). Scripts on an engine set up by
+/// [`register`](crate::register) can read tags but not set them, so the kind always comes from an
+/// error this crate raised.
 pub fn error_kind(error: &EvalAltResult) -> Option<ErrorKind> {
     match error.unwrap_inner() {
         EvalAltResult::ErrorRuntime(value, _) => ErrorKind::from_tag(value.tag().into()),

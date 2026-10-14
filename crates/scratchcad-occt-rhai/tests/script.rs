@@ -619,6 +619,29 @@ fn scripts_cannot_import_files() {
 }
 
 #[test]
+fn scripts_cannot_forge_error_kinds() {
+    let forge = "let e = \"fake\"; e.tag = 9; throw e;";
+    // Rhai's default engine lets scripts tag their values...
+    let error = Engine::new().eval::<Dynamic>(forge).unwrap_err();
+    assert_eq!(error_kind(&error), Some(ErrorKind::Cancelled));
+    // ...but not once this crate is registered, whoever created the engine.
+    let mut own = Engine::new();
+    scratchcad_occt_rhai::register(&mut own);
+    for engine in [engine(), own] {
+        for script in [forge, "let e = \"fake\"; e.set_tag(9); e", "set_tag(\"fake\", 9)"] {
+            let error = engine.eval::<Dynamic>(script).unwrap_err();
+            assert_eq!(error_kind(&error), Some(ErrorKind::InvalidArgument), "{script}");
+            assert!(error.to_string().contains("tags are read-only"), "{script}: {error}");
+        }
+        // Tags can still be read, and a caught error keeps its kind when re-thrown.
+        assert_eq!(engine.eval::<INT>("let e = \"x\"; e.tag").unwrap(), 0);
+        let error =
+            engine.eval::<Dynamic>("try { box(0, 1, 1) } catch (e) { throw e }").unwrap_err();
+        assert_eq!(error_kind(&error), Some(ErrorKind::InvalidArgument));
+    }
+}
+
+#[test]
 fn errors_carry_their_kind() {
     let tag = |script: &str| {
         run::<INT>(&format!("let t = -1; try {{ {script}; }} catch (e) {{ t = e.tag; }} t"))

@@ -124,7 +124,9 @@ These are deliberate; keep them.
    printer once and routes messages in Rust afterwards. Do not call `Message_use_*_printer` anywhere
    else.
 7. **Errors.** Every fallible function returns the crate's `Result`. Keep error messages stable and
-   specific: scratchcad passes them on to a language model that fixes the script.
+   specific: scratchcad passes them on to a language model that fixes the script. Script errors
+   carry their `ErrorKind` as the Rhai tag, and `register` overrides Rhai's tag setters so scripts
+   cannot forge one (`scripts_cannot_forge_error_kinds`).
 
 ## OCCT and Rhai details learned the hard way
 

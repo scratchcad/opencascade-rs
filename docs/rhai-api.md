@@ -25,8 +25,8 @@ the script inside `with_cancel` to be able to stop long OpenCASCADE operations; 
   `try { ... } catch (err) { print(err) }`. The error is its message, tagged with its kind:
   `err.tag` is 1 (OpenCASCADE exception), 2 (operation failed), 3 (wrong shape type), 4 (invalid
   argument), 5 (empty selection), 6 (index out of range), 7 (bad selector) or 9 (cancelled).
-  Values a script throws itself have tag 0. (Kind 8, file and format errors, only comes from the
-  Rust API.)
+  Values a script throws itself have tag 0, and scripts cannot set tags, so a tag always comes from
+  a real error. (Kind 8, file and format errors, only comes from the Rust API.)
 * **Numbers** may be integers or floats. **Angles** are in degrees.
 * **Vectors** are `vec3(x, y, z)` values or arrays (`[x, y, z]`, or `[x, y]` with `z = 0`).
   **Directions** may also be axis names: `"X"`, `"-Z"`.

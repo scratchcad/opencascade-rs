@@ -749,6 +749,13 @@ fn register_sketch(engine: &mut Engine) {
 }
 
 fn register_results(engine: &mut Engine) {
+    // Errors carry their `ErrorKind` as their tag (see `error_kind`), so scripts may read tags but
+    // not set them: a script cannot pass off a value it throws as one of this crate's errors.
+    // These take precedence over the setters in Rhai's standard package.
+    let read_only = |_: &mut Dynamic, _: INT| -> RhaiResult<()> {
+        Err(invalid("tags are read-only: they carry the kind of an error"))
+    };
+    engine.register_fn("set_tag", read_only).register_set("tag", read_only);
     engine
         .register_type_with_name::<BoundingBox>("BoundingBox")
         .register_get("min", |b: &mut BoundingBox| b.min)

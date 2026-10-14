@@ -176,7 +176,7 @@ impl Shape {
 
     /// The shape meshed with `options`, as a binary STL file.
     pub fn to_stl(&self, options: &MeshOptions) -> Result<Vec<u8>> {
-        Ok(self.mesh_with(options)?.to_stl())
+        finished(self.mesh_with(options)?.to_stl())
     }
 
     /// The shape in `format`. `stl` sets how finely STL files are meshed; the other formats
