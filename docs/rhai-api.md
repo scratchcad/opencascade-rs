@@ -4,7 +4,9 @@
 `scratchcad_occt_rhai::register(&mut engine)` adds it to an engine of your own. `eval_shape(script)`
 runs a script and converts its result to a `Shape`.
 
-Scripts model, measure and mesh; they cannot read or write files. Files are the host's job,
+Scripts model, measure and mesh; they cannot read or write files, and `import` resolves no
+modules (`register` replaces Rhai's default resolver, which loads `.rhai` files from disk; set your
+own after it to give scripts modules). Files are the host's job,
 through the Rust API: read a shape with `Shape::import(path)` or `Shape::from_bytes(format, bytes)`
 and hand it to the script in its `Scope` (`scope.push("part", shape)`), and write the shape the
 script returns with `shape.export(path, stl_tolerance)` or `shape.to_bytes(format, &options)`. For
@@ -116,10 +118,11 @@ the test suite runs every one of them.
 The Rust API behind the scripts adds a few things for programs that run scripts on behalf of
 others, such as servers:
 
-* **In memory.** `shape.to_bytes(format, &mesh_options)` and `Shape::from_bytes(format, bytes)`
-  convert to and from STEP, IGES and BREP (and, write-only, binary STL) without touching the
-  filesystem. `Format::from_extension` and `Format::media_type` help with file names and HTTP.
-  (OpenCASCADE 7.8 can only read IGES from files, so `from_iges` uses a temporary file.)
+* **In memory.** `shape.to_bytes(format, &mesh_options)` writes STEP, IGES, BREP or binary STL,
+  and `Shape::from_bytes(format, bytes)` reads STEP or BREP, without touching the filesystem.
+  OpenCASCADE 7.8 reads IGES only from files: use `Shape::read_iges(path)` for those. A
+  conversion cancelled part way fails with `Error::Cancelled` rather than returning part of the
+  model. `Format::from_extension` and `Format::media_type` help with file names and HTTP.
 * **Cancellation.** Booleans, shells, meshing (between faces) and STEP/IGES/BREP conversion
   poll the `CancelToken` of the enclosing `with_cancel(&token, || ...)` and fail with
   `Error::Cancelled` once it is cancelled from another thread. OpenCASCADE 7.8 ignores the

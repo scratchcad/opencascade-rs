@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::{assert_close, cube10, v};
+use common::{assert_close, cube10, temp_dir, v};
 use scratchcad_occt_rhai::{
     engine, error_kind, with_cancel, CancelToken, Error, ErrorKind, Format, MeshOptions, Shape,
 };
@@ -29,6 +29,9 @@ fn operations_stop_when_already_cancelled() {
     let b = Shape::sphere(6.0).unwrap();
     let step = a.to_step().unwrap();
     let brep = a.to_brep().unwrap();
+    let dir = temp_dir();
+    let iges = dir.path().join("a.igs");
+    a.write_iges(&iges).unwrap();
     let token = cancelled();
     with_cancel(&token, || {
         assert_cancelled(a.fuse(&b));
@@ -51,6 +54,7 @@ fn operations_stop_when_already_cancelled() {
         assert_cancelled(a.to_brep());
         assert_cancelled(Shape::from_step(&step));
         assert_cancelled(Shape::from_brep(&brep));
+        assert_cancelled(Shape::read_iges(&iges));
     });
 }
 

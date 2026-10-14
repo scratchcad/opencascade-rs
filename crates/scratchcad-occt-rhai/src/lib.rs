@@ -9,8 +9,8 @@
 //!   write files.
 //!
 //! Files are the host's job: shapes convert to and from STEP, IGES, BREP and (write-only) STL in
-//! memory ([`Shape::to_bytes`], [`Shape::from_bytes`]) or as files ([`Shape::export`],
-//! [`Shape::import`]). Long-running OpenCASCADE algorithms
+//! memory ([`Shape::to_bytes`], [`Shape::from_bytes`]; IGES is read only from files) or as files
+//! ([`Shape::export`], [`Shape::import`]). Long-running OpenCASCADE algorithms
 //! can be stopped from another thread with a [`CancelToken`] (see [`with_cancel`]), and
 //! OpenCASCADE's console output can be redirected with [`set_message_handler`].
 //!

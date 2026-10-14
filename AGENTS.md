@@ -96,10 +96,12 @@ call.
 
 These are deliberate; keep them.
 
-1. **Scripts cannot touch the filesystem.** Nothing `register` adds reads or writes files: the host
-   does that through the Rust API (`Shape::to_bytes`/`from_bytes`, `export`/`import`) and passes shapes
-   to scripts in their `Scope`. `tests/script.rs` (`scripts_cannot_touch_files`) guards this. Rhai's
-   `disable_symbol` cannot hide functions, so never register a file function at all.
+1. **Scripts cannot touch the filesystem.** Nothing `register` adds reads or writes files, and it
+   replaces Rhai's default module resolver (which loads `.rhai` files for `import`) with
+   `DummyModuleResolver`. The host reads and writes files through the Rust API
+   (`Shape::to_bytes`/`from_bytes`, `export`/`import`) and passes shapes to scripts in their `Scope`.
+   `tests/script.rs` (`scripts_cannot_touch_files`, `scripts_cannot_import_files`) guards this.
+   Rhai's `disable_symbol` cannot hide functions, so never register a file function at all.
 2. **`Shape` is neither `Send` nor `Sync`** (it wraps an `Rc`). OCCT shapes share sub-shapes, and many
    OCCT algorithms update their inputs' sub-shapes in place (new parameter curves, larger tolerances),
    so sharing shapes between threads would race. Do not switch to `Arc` or add `unsafe impl Sync`;
@@ -113,7 +115,9 @@ These are deliberate; keep them.
    `cancel::failed("name")` (it becomes `Error::Cancelled` when the token was cancelled), and call
    `cancel::check()` before work OCCT cannot interrupt. In OCCT 7.8, booleans, shells, meshing (between
    faces) and STEP/IGES/BREP conversion poll the range; fillets, chamfers and lofts ignore it, and
-   sweeps and `clean` take none. `tests/cancel.rs` checks each.
+   sweeps and `clean` take none. A translator stopped part way can report success with part of the
+   model, so conversions end with `cancel::check()` (`finished` in `io.rs`). `tests/cancel.rs`
+   checks each.
 5. **STEP and IGES conversion holds `io::translator`'s lock**: OCCT's translators keep global state.
    BREP and STL do not need it.
 6. **OCCT's console output.** OCCT does not synchronize its printer list, so `messages.rs` swaps the
@@ -126,8 +130,9 @@ These are deliberate; keep them.
 
 * `BRepTools::Write` to a stream omits the `DBRep_DrawableShape` line that the file writer adds;
   `write_brep_bytes` adds it, so in-memory and file BREP are identical.
-* OCCT 7.8 cannot read IGES from a stream; `Shape::from_iges` goes through an exclusively created
-  temporary file.
+* OCCT 7.8 cannot read IGES from a stream, so IGES is read only from a file the host names
+  (`Shape::read_iges`); `from_bytes(Format::Iges)` is an error. The crate never writes temporary
+  files; do not add one to work around this.
 * OCCT 7.8's data-exchange toolkits are `TKDESTEP`, `TKDEIGES`, `TKDESTL`; 7.6 names them differently.
 * Rhai's `Engine::gen_fn_signatures` needs Rhai's `metadata` feature, which is off; test the presence
   of a function by calling it.

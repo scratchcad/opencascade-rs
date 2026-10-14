@@ -85,8 +85,8 @@ fn face_triangles_follow_the_faces() {
 /// How many triangles use each (undirected) edge.
 fn edge_uses(mesh: &Mesh) -> HashMap<(usize, usize), usize> {
     let mut uses = HashMap::new();
-    for t in mesh.indices.chunks_exact(3) {
-        for (a, b) in [(t[0], t[1]), (t[1], t[2]), (t[2], t[0])] {
+    for &[x, y, z] in mesh.indices.as_chunks::<3>().0 {
+        for (a, b) in [(x, y), (y, z), (z, x)] {
             *uses.entry((a.min(b), a.max(b))).or_default() += 1;
         }
     }

@@ -149,11 +149,15 @@ fn vec_array(vectors: &[DVec3]) -> Array {
 
 /// Registers every type and function of this crate with `engine`.
 ///
-/// Scripts get no filesystem access: nothing registered here reads or writes files, so a script
-/// can only model, measure and mesh. Reading and writing files is left to the host, through the
-/// Rust API ([`Shape::to_bytes`], [`Shape::from_bytes`], [`Shape::export`] and friends); to give
-/// a script a shape read from a file, push it into the script's `Scope`.
+/// Scripts get no filesystem access: nothing registered here reads or writes files, and the
+/// engine's module resolver is replaced with one that resolves nothing, so `import "path"` cannot
+/// load script files from disk (as `Engine::new`'s default resolver does). A script can only
+/// model, measure and mesh. Reading and writing files is left to the host, through the Rust API
+/// ([`Shape::to_bytes`], [`Shape::from_bytes`], [`Shape::export`] and friends); to give a script
+/// a shape read from a file, push it into the script's `Scope`. To give scripts modules, set a
+/// resolver of your own (such as Rhai's `StaticModuleResolver`) after calling this.
 pub fn register(engine: &mut Engine) {
+    engine.set_module_resolver(rhai::module_resolvers::DummyModuleResolver::new());
     register_vec3(engine);
     register_plane(engine);
     register_constructors(engine);

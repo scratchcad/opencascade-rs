@@ -9,8 +9,12 @@ runs:
     - name: Install OpenCASCADE 7.8.1 from conda-forge
       shell: bash
       run: |
-        curl -fsSL https://micro.mamba.pm/api/micromamba/linux-64/latest \
-          | tar -xj -C "$RUNNER_TEMP" bin/micromamba
+        # A pinned micromamba, checked against the hash of its conda-forge package.
+        curl -fsSL -o "$RUNNER_TEMP/micromamba.tar.bz2" \
+          https://micro.mamba.pm/api/micromamba/linux-64/2.9.0
+        echo "8761c382127e6363bd9e0a2451aa3ef90d071a79133f736e2f759a3bf13040dd  $RUNNER_TEMP/micromamba.tar.bz2" \
+          | sha256sum -c -
+        tar -xjf "$RUNNER_TEMP/micromamba.tar.bz2" -C "$RUNNER_TEMP" bin/micromamba
         MAMBA_ROOT_PREFIX="$RUNNER_TEMP/mamba" "$RUNNER_TEMP/bin/micromamba" create -y -q \
           -p "$RUNNER_TEMP/occt" -c conda-forge "occt=7.8.1=novtk*"
         echo "DEP_OCCT_ROOT=$RUNNER_TEMP/occt" >> "$GITHUB_ENV"

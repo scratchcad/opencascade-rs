@@ -602,6 +602,23 @@ fn scripts_cannot_touch_files() {
 }
 
 #[test]
+fn scripts_cannot_import_files() {
+    let dir = temp_dir();
+    std::fs::write(dir.path().join("lib.rhai"), "export const ANSWER = 42;").unwrap();
+    let path = dir.path().join("lib").to_string_lossy().replace('\\', "/");
+    let script = format!("import \"{path}\" as lib; lib::ANSWER");
+    // Rhai's default engine reads the module from disk...
+    assert_eq!(Engine::new().eval::<INT>(&script).unwrap(), 42);
+    // ...but not once this crate is registered, whoever created the engine.
+    let mut own = Engine::new();
+    scratchcad_occt_rhai::register(&mut own);
+    for engine in [engine(), own] {
+        let error = engine.eval::<INT>(&script).unwrap_err().to_string();
+        assert!(error.contains("Module not found"), "{error}");
+    }
+}
+
+#[test]
 fn errors_carry_their_kind() {
     let tag = |script: &str| {
         run::<INT>(&format!("let t = -1; try {{ {script}; }} catch (e) {{ t = e.tag; }} t"))

@@ -60,15 +60,20 @@ fn round_trips_in_memory() {
     let part = Shape::cube(2.0).unwrap().fillet_all(0.5).unwrap();
     let volume = part.volume().unwrap();
     let stl = MeshOptions::new(0.1);
-    for format in [Format::Step, Format::Iges, Format::Brep] {
+    for format in [Format::Step, Format::Brep] {
         let bytes = part.to_bytes(format, &stl).unwrap();
         let back = Shape::from_bytes(format, &bytes).unwrap();
-        assert!(!back.faces().is_empty(), "{format}");
-        if format != Format::Iges {
-            // IGES has no solids, only their faces.
-            assert_close(back.volume().unwrap(), volume, 1e-6);
-        }
+        assert_close(back.volume().unwrap(), volume, 1e-6);
     }
+    // IGES is written in memory but read only from files.
+    let iges = part.to_bytes(Format::Iges, &stl).unwrap();
+    err_contains(Shape::from_bytes(Format::Iges, &iges), "IGES can only be read from a file");
+    let dir = temp_dir();
+    std::fs::write(dir.path().join("part.igs"), &iges).unwrap();
+    assert_eq!(
+        Shape::read_iges(dir.path().join("part.igs")).unwrap().faces().len(),
+        part.faces().len()
+    );
     assert!(part.to_step().unwrap().starts_with(b"ISO-10303-21;"));
     assert!(part.to_brep().unwrap().starts_with(b"DBRep_DrawableShape"));
     let mesh = part.to_bytes(Format::Stl, &stl).unwrap();
@@ -79,7 +84,7 @@ fn round_trips_in_memory() {
 
 #[test]
 fn reading_junk_from_memory_fails() {
-    for format in [Format::Step, Format::Iges, Format::Brep] {
+    for format in [Format::Step, Format::Brep] {
         let result = Shape::from_bytes(format, b"this is not a CAD file");
         assert!(matches!(result, Err(Error::Io(_))), "{format}: {result:?}");
     }

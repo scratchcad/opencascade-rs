@@ -4,20 +4,13 @@
 //! serialized through a process-wide lock. BREP and STL conversions run concurrently.
 
 use crate::{
-    cancel::{failed, progress},
+    cancel::{check, failed, progress},
     error::{Error, Result},
     mesh::MeshOptions,
     shape::Shape,
 };
 use scratchcad_occt_sys as ffi;
-use std::{
-    fmt,
-    path::{Path, PathBuf},
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        Mutex,
-    },
-};
+use std::{fmt, path::Path, sync::Mutex};
 
 static TRANSLATOR_LOCK: Mutex<()> = Mutex::new(());
 
@@ -130,6 +123,13 @@ fn bytes_of(string: cxx::UniquePtr<cxx::CxxString>, format: Format) -> Result<Ve
     }
 }
 
+/// The result of a conversion, unless it was cancelled: a translator stopped part way can report
+/// success with only part of the model.
+fn finished<T>(result: T) -> Result<T> {
+    check()?;
+    Ok(result)
+}
+
 impl Shape {
     // ---------------------------------------------------------------------------------------
     // In memory
@@ -147,7 +147,9 @@ impl Shape {
             if status != ffi::if_select::IFSelect_ReturnStatus::IFSelect_RetDone {
                 return Err(convert_error("convert the shape to", Format::Step));
             }
-            bytes_of(ffi::step_control::write_step_bytes(writer.pin_mut())?, Format::Step)
+            let bytes =
+                bytes_of(ffi::step_control::write_step_bytes(writer.pin_mut())?, Format::Step)?;
+            finished(bytes)
         })
     }
 
@@ -159,7 +161,9 @@ impl Shape {
                 return Err(convert_error("convert the shape to", Format::Iges));
             }
             writer.pin_mut().ComputeModel()?;
-            bytes_of(ffi::iges_control::write_iges_bytes(writer.pin_mut())?, Format::Iges)
+            let bytes =
+                bytes_of(ffi::iges_control::write_iges_bytes(writer.pin_mut())?, Format::Iges)?;
+            finished(bytes)
         })
     }
 
@@ -167,8 +171,7 @@ impl Shape {
     pub fn to_brep(&self) -> Result<Vec<u8>> {
         let bytes =
             bytes_of(ffi::b_rep_tools::write_brep_bytes(self.raw(), &progress())?, Format::Brep)?;
-        crate::cancel::check()?;
-        Ok(bytes)
+        finished(bytes)
     }
 
     /// The shape meshed with `options`, as a binary STL file.
@@ -196,35 +199,26 @@ impl Shape {
                 return Err(convert_error("read", Format::Step));
             }
             reader.pin_mut().TransferRoots(&progress())?;
-            Shape::from_unique(ffi::step_control::one_shape_step(&reader)?)
-                .map_err(|_| convert_error("read", Format::Step))
-        })
-    }
-
-    /// Reads all shapes from an IGES file (as a compound when there are several).
-    ///
-    /// OpenCASCADE 7.8 can only read IGES from files, so the bytes pass through a temporary
-    /// file in [`std::env::temp_dir`].
-    pub fn from_iges(bytes: &[u8]) -> Result<Shape> {
-        let file = TempFile::create("igs", bytes)
-            .map_err(|e| Error::Io(format!("failed to write a temporary IGES file: {e}")))?;
-        Shape::read_iges(&file.0).map_err(|e| match e {
-            Error::Io(_) => convert_error("read", Format::Iges),
-            other => other,
+            let shape = Shape::from_unique(ffi::step_control::one_shape_step(&reader)?)
+                .map_err(|_| convert_error("read", Format::Step))?;
+            finished(shape)
         })
     }
 
     /// Reads a shape in OpenCASCADE's text BREP format.
     pub fn from_brep(bytes: &[u8]) -> Result<Shape> {
         let shape = ffi::b_rep_tools::read_brep_bytes(bytes, &progress())?;
-        Shape::from_unique(shape).map_err(|_| convert_error("read", Format::Brep))
+        finished(Shape::from_unique(shape).map_err(|_| convert_error("read", Format::Brep))?)
     }
 
-    /// Reads a shape in `format`. STL files hold meshes, not shapes, and cannot be read.
+    /// Reads a shape in `format`: STEP or BREP. STL files hold meshes, not shapes, and cannot be
+    /// read; OpenCASCADE 7.8 reads IGES only from files, so use [`Shape::read_iges`] for those.
     pub fn from_bytes(format: Format, bytes: &[u8]) -> Result<Shape> {
         match format {
             Format::Step => Shape::from_step(bytes),
-            Format::Iges => Shape::from_iges(bytes),
+            Format::Iges => Err(Error::Io(
+                "IGES can only be read from a file, not from memory (use Shape::read_iges)".into(),
+            )),
             Format::Brep => Shape::from_brep(bytes),
             Format::Stl => {
                 Err(Error::Io("STL files hold meshes and cannot be read as shapes".into()))
@@ -265,8 +259,9 @@ impl Shape {
                 return Err(file_error("read", Format::Iges, path, "not a readable IGES file"));
             }
             reader.pin_mut().TransferRoots(&progress())?;
-            Shape::from_unique(ffi::iges_control::one_shape_iges(&reader)?)
-                .map_err(|_| file_error("read", Format::Iges, path, "it holds no shapes"))
+            let shape = Shape::from_unique(ffi::iges_control::one_shape_iges(&reader)?)
+                .map_err(|_| file_error("read", Format::Iges, path, "it holds no shapes"))?;
+            finished(shape)
         })
     }
 
@@ -324,47 +319,4 @@ fn unsupported(path: &Path) -> Error {
         "unsupported file type {} (expected .step, .stp, .iges, .igs, .brep, .brp or .stl)",
         path.display()
     ))
-}
-
-/// A file in the temporary directory, removed when dropped.
-struct TempFile(PathBuf);
-
-impl TempFile {
-    /// Creates a new file holding `bytes`. The file is created exclusively (never through an
-    /// existing file or symlink of the same name, which another user of a shared temporary
-    /// directory could have planted), trying another name if one is taken.
-    fn create(extension: &str, bytes: &[u8]) -> std::io::Result<Self> {
-        use std::io::Write;
-        static COUNTER: AtomicU64 = AtomicU64::new(0);
-        let mut attempts = 0;
-        loop {
-            let nanos = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map_or(0, |d| d.subsec_nanos());
-            let name = format!(
-                "scratchcad-occt-{}-{}-{nanos}.{extension}",
-                std::process::id(),
-                COUNTER.fetch_add(1, Ordering::Relaxed)
-            );
-            let path = std::env::temp_dir().join(name);
-            match std::fs::OpenOptions::new().write(true).create_new(true).open(&path) {
-                Ok(mut file) => {
-                    // Removed on drop, even if writing fails.
-                    let temp = Self(path);
-                    file.write_all(bytes)?;
-                    return Ok(temp);
-                },
-                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists && attempts < 100 => {
-                    attempts += 1;
-                },
-                Err(e) => return Err(e),
-            }
-        }
-    }
-}
-
-impl Drop for TempFile {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.0);
-    }
 }

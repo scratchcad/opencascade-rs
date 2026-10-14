@@ -147,6 +147,7 @@ mod tests {
     #[test]
     fn kinds_round_trip_through_tags() {
         let mut tags: Vec<INT> = ErrorKind::ALL.iter().map(|kind| kind.tag()).collect();
+        tags.sort_unstable();
         tags.dedup();
         assert_eq!(tags.len(), ErrorKind::ALL.len());
         for kind in ErrorKind::ALL {

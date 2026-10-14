@@ -145,8 +145,8 @@ impl Mesh {
 
         for range in &self.face_triangles {
             let start = welded.triangle_count();
-            for triangle in self.indices[3 * range.start..3 * range.end].chunks_exact(3) {
-                let [a, b, c] = [remap[triangle[0]], remap[triangle[1]], remap[triangle[2]]];
+            for &[a, b, c] in self.indices[3 * range.start..3 * range.end].as_chunks::<3>().0 {
+                let [a, b, c] = [remap[a], remap[b], remap[c]];
                 if a != b && b != c && a != c {
                     welded.indices.extend([a, b, c]);
                 }

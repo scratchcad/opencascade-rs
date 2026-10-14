@@ -57,11 +57,11 @@ let part = plate.fillet(2.0, plate.edges().select("|Z")?.shapes())?.cut(&hole)?;
 
 ### Running scripts you do not trust
 
-Scripts have no functions that read or write files. A `CancelToken` stops long OpenCASCADE
-operations (booleans, shells, meshing, STEP/IGES/BREP conversion) from another thread; fillets,
-chamfers and lofts cannot be interrupted once started (OpenCASCADE 7.8 ignores their progress
-range) but do not start after a cancel. Shapes convert to STEP, IGES, BREP or binary STL in
-memory:
+Scripts have no functions that read or write files, and `import` loads no modules from disk. A
+`CancelToken` stops long OpenCASCADE operations (booleans, shells, meshing, STEP/IGES/BREP
+conversion) from another thread; fillets, chamfers and lofts cannot be interrupted once started
+(OpenCASCADE 7.8 ignores their progress range) but do not start after a cancel. Shapes convert to
+STEP, IGES, BREP or binary STL in memory:
 
 ```rust
 use scratchcad_occt_rhai::{engine, to_shape, with_cancel, CancelToken, Format, MeshOptions};
