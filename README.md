@@ -51,7 +51,8 @@ The script's last expression is the shape to export. Run `occt-rhai --help` for 
 cargo add scratchcad-occt-rhai
 ```
 
-Run a script with `eval_shape`, or add the functions to your own Rhai `Engine` with `register`:
+Run a script with `eval_shape`, or add the functions to your own Rhai `Engine` with `register`.
+Scripts only model; your Rust code reads and writes the files:
 
 ```rust
 let part = scratchcad_occt_rhai::eval_shape(r#"box(40, 30, 5).fillet(2, "|Z")"#)?;
@@ -70,16 +71,16 @@ let part = plate.fillet(2.0, plate.edges().select("|Z")?.shapes())?.cut(&hole)?;
 
 ### Running scripts you do not trust
 
-A sandboxed engine has no functions that read or write files, and a `CancelToken` stops long
-OpenCASCADE operations (booleans, shells, meshing, STEP/IGES/BREP conversion) from another
-thread; fillets, chamfers and lofts cannot be interrupted once started (OpenCASCADE 7.8 ignores
-their progress range) but do not start after a cancel. Shapes convert to STEP, IGES, BREP or
-binary STL in memory:
+Scripts have no functions that read or write files. A `CancelToken` stops long OpenCASCADE
+operations (booleans, shells, meshing, STEP/IGES/BREP conversion) from another thread; fillets,
+chamfers and lofts cannot be interrupted once started (OpenCASCADE 7.8 ignores their progress
+range) but do not start after a cancel. Shapes convert to STEP, IGES, BREP or binary STL in
+memory:
 
 ```rust
-use scratchcad_occt_rhai::{sandboxed_engine, to_shape, with_cancel, CancelToken, Format, MeshOptions};
+use scratchcad_occt_rhai::{engine, to_shape, with_cancel, CancelToken, Format, MeshOptions};
 
-let mut engine = sandboxed_engine();
+let mut engine = engine();
 engine.set_max_operations(1_000_000);
 let token = CancelToken::new(); // call token.cancel() from another thread to stop the work
 let step = with_cancel(&token, || -> Result<Vec<u8>, Box<dyn std::error::Error>> {

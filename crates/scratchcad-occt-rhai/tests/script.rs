@@ -5,9 +5,7 @@ mod common;
 use common::{assert_close, assert_vec_close, temp_dir, v};
 use scratchcad_occt_rhai::{
     engine, error_kind, eval, eval_shape,
-    rhai::{Array, Dynamic, Engine, INT},
-    sandboxed_engine,
-    script::FILE_FUNCTIONS,
+    rhai::{Array, Dynamic, Engine, Scope, INT},
     BoundingBox, DVec3, ErrorKind, Mesh, Plane, Selection, Shape, ShapeType, Sketch,
 };
 use std::f64::consts::PI;
@@ -505,40 +503,20 @@ fn bounding_boxes_and_meshes() {
 }
 
 #[test]
-fn files() {
+fn hosts_read_and_write_files_for_scripts() {
     let dir = temp_dir();
-    let p = |name: &str| dir.path().join(name).to_string_lossy().replace('\\', "/");
-    let script = format!(
-        r#"
-        let part = box(1, 2, 3);
-        part.export_step("{step}");
-        part.export_iges("{iges}");
-        part.export_brep("{brep}");
-        part.export_stl("{stl}");
-        part.export_stl("{stl2}", 0.5);
-        part.save("{any}");
-        [import_step("{step}").volume(), import_brep("{brep}").volume(), load("{any}").volume(),
-         import_iges("{iges}").faces().len()]
-        "#,
-        step = p("a.step"),
-        iges = p("a.igs"),
-        brep = p("a.brep"),
-        stl = p("a.stl"),
-        stl2 = p("b.stl"),
-        any = p("c.stp"),
-    );
-    let results = run::<Array>(&script);
-    assert_close(results[0].as_float().unwrap(), 6.0, 1e-6);
-    assert_close(results[1].as_float().unwrap(), 6.0, 1e-9);
-    assert_close(results[2].as_float().unwrap(), 6.0, 1e-6);
-    assert_eq!(results[3].as_int().unwrap(), 6);
-    assert!(dir.path().join("a.stl").exists() && dir.path().join("b.stl").exists());
-    fails(
-        &format!("box(1, 1, 1).export_stl(\"{}\", \"fine\")", p("x.stl")),
-        "tolerance must be a number",
-    );
-    fails(&format!("load(\"{}\")", p("missing.step")), "failed to read STEP file");
-    fails(&format!("box(1, 1, 1).save(\"{}\")", p("x.obj")), "unsupported file type");
+    let input = dir.path().join("in.step");
+    Shape::make_box(1.0, 2.0, 3.0).unwrap().write_step(&input).unwrap();
+
+    let mut scope = Scope::new();
+    scope.push("part", Shape::read_step(&input).unwrap());
+    let result: Shape =
+        engine().eval_with_scope(&mut scope, "part.translate([1, 0, 0]).fillet(0.1)").unwrap();
+    let output = dir.path().join("out.brep");
+    result.export(&output, 0.1).unwrap();
+    let back = Shape::import(&output).unwrap();
+    assert_close(back.bounding_box().unwrap().min.x, 1.0, 1e-6);
+    assert!(back.volume().unwrap() < 6.0);
 }
 
 #[test]
@@ -590,38 +568,37 @@ fn occt_message_level_can_be_toggled() {
 }
 
 #[test]
-fn sandboxed_engines_cannot_touch_files() {
+fn scripts_cannot_touch_files() {
     let dir = temp_dir();
-    // A directory that does not exist, so that no call can create a file.
-    let p = |name: &str| dir.path().join("missing").join(name).to_string_lossy().replace('\\', "/");
+    let p = |name: &str| dir.path().join(name).to_string_lossy().replace('\\', "/");
+    std::fs::write(dir.path().join("a.step"), Shape::cube(1.0).unwrap().to_step().unwrap())
+        .unwrap();
+    // Every file function earlier versions registered, and a few other likely names.
     let calls = [
-        ("load", format!("load(\"{}\")", p("a.step"))),
-        ("import_step", format!("import_step(\"{}\")", p("a.step"))),
-        ("import_iges", format!("import_iges(\"{}\")", p("a.igs"))),
-        ("import_brep", format!("import_brep(\"{}\")", p("a.brep"))),
-        ("save", format!("box(1, 1, 1).save(\"{}\")", p("a.step"))),
-        ("export_step", format!("box(1, 1, 1).export_step(\"{}\")", p("a.step"))),
-        ("export_iges", format!("box(1, 1, 1).export_iges(\"{}\")", p("a.igs"))),
-        ("export_brep", format!("box(1, 1, 1).export_brep(\"{}\")", p("a.brep"))),
-        ("export_stl", format!("box(1, 1, 1).export_stl(\"{}\")", p("a.stl"))),
-        ("export_stl", format!("box(1, 1, 1).export_stl(\"{}\", 0.1)", p("a.stl"))),
+        format!("load(\"{}\")", p("a.step")),
+        format!("import_step(\"{}\")", p("a.step")),
+        format!("import_iges(\"{}\")", p("a.igs")),
+        format!("import_brep(\"{}\")", p("a.brep")),
+        format!("read_step(\"{}\")", p("a.step")),
+        format!("box(1, 1, 1).save(\"{}\")", p("b.step")),
+        format!("box(1, 1, 1).export_step(\"{}\")", p("b.step")),
+        format!("box(1, 1, 1).export_iges(\"{}\")", p("b.igs")),
+        format!("box(1, 1, 1).export_brep(\"{}\")", p("b.brep")),
+        format!("box(1, 1, 1).export_stl(\"{}\")", p("b.stl")),
+        format!("box(1, 1, 1).export_stl(\"{}\", 0.1)", p("b.stl")),
+        format!("box(1, 1, 1).write_step(\"{}\")", p("b.step")),
     ];
-    for name in FILE_FUNCTIONS {
-        assert!(calls.iter().any(|(n, _)| *n == name), "{name} is not checked");
+    // `engine()`, and an engine of the caller's own given everything through `register`.
+    let mut own = Engine::new();
+    scratchcad_occt_rhai::register(&mut own);
+    for engine in [engine(), own] {
+        for call in &calls {
+            let error = engine.eval::<Dynamic>(call).unwrap_err().to_string();
+            assert!(error.contains("Function not found"), "{call}: {error}");
+        }
     }
-    for (name, call) in &calls {
-        let sandboxed = sandboxed_engine().eval::<Dynamic>(call).unwrap_err().to_string();
-        assert!(sandboxed.contains("Function not found"), "{name}: {sandboxed}");
-        // The full engine has the function; it fails only because the directory is missing.
-        let full = engine().eval::<Dynamic>(call).unwrap_err().to_string();
-        assert!(
-            !full.contains("Function not found") && full.contains("failed to"),
-            "{name}: {full}"
-        );
-    }
-    assert!(!dir.path().join("missing").exists());
-    let volume: f64 = sandboxed_engine().eval("box(1, 2, 3).volume()").unwrap();
-    assert_close(volume, 6.0, 1e-9);
+    let written: Vec<_> = std::fs::read_dir(dir.path()).unwrap().collect();
+    assert_eq!(written.len(), 1, "only the file the test wrote itself");
 }
 
 #[test]

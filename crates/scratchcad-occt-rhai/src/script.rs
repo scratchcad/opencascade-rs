@@ -11,9 +11,7 @@
 //!   single `Shape` or an array of shapes.
 //! * Every fallible function raises a catchable runtime error, tagged with its
 //!   [`ErrorKind`](crate::ErrorKind).
-//!
-//! [`register_sandboxed`] adds everything except the functions that read or write files, for
-//! running scripts you do not trust; [`register_files`] adds those; [`register`] adds both.
+//! * Scripts cannot read or write files; the host does that through the Rust API.
 
 use crate::{
     error::{Error, Result as CrateResult},
@@ -25,12 +23,8 @@ use crate::{
 };
 use glam::{DVec2, DVec3};
 use rhai::{Array, Dynamic, Engine, EvalAltResult, FnPtr, NativeCallContext, FLOAT, INT};
-use std::path::Path;
 
 type RhaiResult<T> = std::result::Result<T, Box<EvalAltResult>>;
-
-/// Default STL meshing tolerance used by `export_stl(path)` and `save(path)`.
-pub const DEFAULT_STL_TOLERANCE: f64 = 0.01;
 
 fn invalid(message: impl Into<String>) -> Box<EvalAltResult> {
     Error::InvalidArgument(message.into()).into()
@@ -153,17 +147,13 @@ fn vec_array(vectors: &[DVec3]) -> Array {
     vectors.iter().copied().map(Dynamic::from).collect()
 }
 
-/// Registers every type and function of this crate with `engine`: [`register_sandboxed`] and
-/// [`register_files`].
+/// Registers every type and function of this crate with `engine`.
+///
+/// Scripts get no filesystem access: nothing registered here reads or writes files, so a script
+/// can only model, measure and mesh. Reading and writing files is left to the host, through the
+/// Rust API ([`Shape::to_bytes`], [`Shape::from_bytes`], [`Shape::export`] and friends); to give
+/// a script a shape read from a file, push it into the script's `Scope`.
 pub fn register(engine: &mut Engine) {
-    register_sandboxed(engine);
-    register_files(engine);
-}
-
-/// Registers every type and function except those that touch the filesystem, so that scripts
-/// can model, measure and mesh but never read or write files. Use it for scripts you do not
-/// trust (together with Rhai's own limits, such as `Engine::set_max_operations`).
-pub fn register_sandboxed(engine: &mut Engine) {
     register_vec3(engine);
     register_plane(engine);
     register_constructors(engine);
@@ -171,55 +161,6 @@ pub fn register_sandboxed(engine: &mut Engine) {
     register_selection(engine);
     register_sketch(engine);
     register_results(engine);
-}
-
-/// The functions [`register_files`] adds: they read or write the file at the path they are
-/// given.
-pub const FILE_FUNCTIONS: [&str; 9] = [
-    "load",
-    "import_step",
-    "import_iges",
-    "import_brep",
-    "save",
-    "export_step",
-    "export_iges",
-    "export_brep",
-    "export_stl",
-];
-
-/// Registers the functions that read and write files ([`FILE_FUNCTIONS`]): `load(path)`,
-/// `import_step/iges/brep(path)`, `shape.save(path)` and `shape.export_step/iges/brep/stl(path)`.
-pub fn register_files(engine: &mut Engine) {
-    engine
-        // `import`/`export` are Rhai keywords, hence `load`/`save`.
-        .register_fn("load", |path: &str| -> RhaiResult<Shape> { Ok(Shape::import(path)?) })
-        .register_fn("import_step", |path: &str| -> RhaiResult<Shape> {
-            Ok(Shape::read_step(path)?)
-        })
-        .register_fn("import_iges", |path: &str| -> RhaiResult<Shape> {
-            Ok(Shape::read_iges(path)?)
-        })
-        .register_fn("import_brep", |path: &str| -> RhaiResult<Shape> {
-            Ok(Shape::read_brep(path)?)
-        })
-        .register_fn("save", |s: &mut Shape, path: &str| -> RhaiResult<()> {
-            Ok(s.export(path, DEFAULT_STL_TOLERANCE)?)
-        })
-        .register_fn("export_step", |s: &mut Shape, path: &str| -> RhaiResult<()> {
-            Ok(s.write_step(path)?)
-        })
-        .register_fn("export_iges", |s: &mut Shape, path: &str| -> RhaiResult<()> {
-            Ok(s.write_iges(path)?)
-        })
-        .register_fn("export_brep", |s: &mut Shape, path: &str| -> RhaiResult<()> {
-            Ok(s.write_brep(path)?)
-        })
-        .register_fn("export_stl", |s: &mut Shape, path: &str| -> RhaiResult<()> {
-            Ok(s.write_stl(path, DEFAULT_STL_TOLERANCE)?)
-        })
-        .register_fn("export_stl", |s: &mut Shape, path: &str, tol: Dynamic| -> RhaiResult<()> {
-            Ok(s.write_stl(Path::new(path), number(&tol, "tolerance")?)?)
-        });
 }
 
 fn register_vec3(engine: &mut Engine) {

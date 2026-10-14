@@ -5,11 +5,12 @@
 //! * A Rust API built around cheap-to-clone, immutable handle types ([`Shape`], [`Selection`],
 //!   [`Sketch`], [`Plane`]) whose operations all return [`Result`] and chain naturally.
 //! * [`register`], which exposes that API to a Rhai [`Engine`] with
-//!   script-friendly argument conversions. [`register_sandboxed`] leaves out the functions
-//!   that read and write files, for scripts you do not trust.
+//!   script-friendly argument conversions. Scripts model, measure and mesh; they cannot read or
+//!   write files.
 //!
-//! Shapes convert to and from STEP, IGES, BREP and (write-only) STL in memory
-//! ([`Shape::to_bytes`], [`Shape::from_bytes`]) or as files. Long-running OpenCASCADE algorithms
+//! Files are the host's job: shapes convert to and from STEP, IGES, BREP and (write-only) STL in
+//! memory ([`Shape::to_bytes`], [`Shape::from_bytes`]) or as files ([`Shape::export`],
+//! [`Shape::import`]). Long-running OpenCASCADE algorithms
 //! can be stopped from another thread with a [`CancelToken`] (see [`with_cancel`]), and
 //! OpenCASCADE's console output can be redirected with [`set_message_handler`].
 //!
@@ -20,6 +21,18 @@
 //!     (plate - hole).chamfer(0.5, ">Z")
 //! "#)?;
 //! part.write_step("plate.step")?;
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+//!
+//! A script works on a shape the host read from a file when the host passes it in:
+//!
+//! ```no_run
+//! use scratchcad_occt_rhai::{engine, rhai::Scope, Shape};
+//!
+//! let mut scope = Scope::new();
+//! scope.push("part", Shape::read_step("bracket.step")?);
+//! let drilled: Shape = engine().eval_with_scope(&mut scope, "part - cylinder(3, 50)")?;
+//! drilled.write_step("drilled.step")?;
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
@@ -59,25 +72,19 @@ pub use mesh::{Mesh, MeshOptions};
 pub use messages::{set_message_handler, set_occt_messages, MessageLevel};
 pub use rhai;
 pub use scratchcad_occt_sys as ffi;
-pub use script::{register, register_files, register_sandboxed, to_shape};
+pub use script::{register, to_shape};
 pub use selection::{Selection, TOLERANCE};
 pub use shape::{BoundingBox, DetachedShape, PointLocation, Shape, ShapeType, CLASSIFY_TOLERANCE};
 pub use sketch::Sketch;
 
 use rhai::{Dynamic, Engine, EvalAltResult};
 
-/// A Rhai engine with every type and function of this crate registered.
+/// A Rhai engine with every type and function of this crate registered (see [`register`]).
+/// Scripts run on it cannot touch the filesystem; set Rhai's own limits (such as
+/// `Engine::set_max_operations`) before running scripts you do not trust.
 pub fn engine() -> Engine {
     let mut engine = Engine::new();
     register(&mut engine);
-    engine
-}
-
-/// A Rhai engine with everything but the file functions registered (see
-/// [`register_sandboxed`]). Set Rhai's own limits on it before running untrusted scripts.
-pub fn sandboxed_engine() -> Engine {
-    let mut engine = Engine::new();
-    register_sandboxed(&mut engine);
     engine
 }
 

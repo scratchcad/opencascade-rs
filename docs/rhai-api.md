@@ -4,10 +4,12 @@
 `scratchcad_occt_rhai::register(&mut engine)` adds it to an engine of your own. `eval_shape(script)`
 runs a script and converts its result to a `Shape`.
 
-For scripts you do not trust, use `sandboxed_engine()` (or `register_sandboxed(&mut engine)`): it
-registers everything except the functions that read or write files (marked *files* below, and
-listed in `script::FILE_FUNCTIONS`). Add Rhai's own limits (`set_max_operations` and friends), and
-run the script inside `with_cancel` to be able to stop long OpenCASCADE operations; see
+Scripts model, measure and mesh; they cannot read or write files. Files are the host's job,
+through the Rust API: read a shape with `Shape::import(path)` or `Shape::from_bytes(format, bytes)`
+and hand it to the script in its `Scope` (`scope.push("part", shape)`), and write the shape the
+script returns with `shape.export(path, stl_tolerance)` or `shape.to_bytes(format, &options)`. For
+scripts you do not trust, also set Rhai's own limits (`set_max_operations` and friends) and run
+the script inside `with_cancel` to be able to stop long OpenCASCADE operations; see
 [Embedding](#embedding).
 
 ## Conventions
@@ -20,8 +22,9 @@ run the script inside `with_cancel` to be able to stop long OpenCASCADE operatio
 * **Errors.** Every fallible function raises a runtime error that scripts can catch:
   `try { ... } catch (err) { print(err) }`. The error is its message, tagged with its kind:
   `err.tag` is 1 (OpenCASCADE exception), 2 (operation failed), 3 (wrong shape type), 4 (invalid
-  argument), 5 (empty selection), 6 (index out of range), 7 (bad selector), 8 (file or format
-  error) or 9 (cancelled). Values a script throws itself have tag 0.
+  argument), 5 (empty selection), 6 (index out of range), 7 (bad selector) or 9 (cancelled).
+  Values a script throws itself have tag 0. (Kind 8, file and format errors, only comes from the
+  Rust API.)
 * **Numbers** may be integers or floats. **Angles** are in degrees.
 * **Vectors** are `vec3(x, y, z)` values or arrays (`[x, y, z]`, or `[x, y]` with `z = 0`).
   **Directions** may also be axis names: `"X"`, `"-Z"`.
@@ -45,7 +48,6 @@ run the script inside `with_cancel` to be able to stop long OpenCASCADE operatio
 | `fuse_all(shapes)`, `loft(sections)`, `loft(sections, solid)` | solids |
 | `sketch()`, `sketch(plane)` | a `Sketch` (see below) |
 | `vec3(x, y, z)`, `plane(name)`, `plane(origin, normal)`, `plane(origin, normal, x_dir)` | values |
-| `load(path)`, `import_step(path)`, `import_iges(path)`, `import_brep(path)` | read a file (*files*) |
 
 ## Shape methods
 
@@ -58,7 +60,6 @@ run the script inside `with_cancel` to be able to stop long OpenCASCADE operatio
 | measurement | `volume()`, `area()`, `length()`, `center()`, `bounding_box()`, `distance(other)`, `closest_points(other)`, `contains(point)`, `classify(point)` (`"inside"`, `"outside"` or `"on"` the solids), `is_valid()`, `is_closed()`, `shape_type()`, `is_same(other)`, `==` |
 | edges, faces, vertices | `point()`, `start_point()`, `end_point()`, `point_at(t)`, `tangent_at(t)`, `radius()`, `geom_type()`, `normal()`, `plane()` (a sketch plane on a planar face), `outer_wire()` |
 | meshing | `mesh(tolerance)`, `mesh(tolerance, angle)` (angle in degrees, default 28.6); a `Mesh` has `vertices`, `normals`, `indices`, `vertex_count`, `triangle_count`, `area()` and `welded()` (shared vertices merged) |
-| output (*files*) | `save(path)` (by extension), `export_step(path)`, `export_iges(path)`, `export_brep(path)`, `export_stl(path)`, `export_stl(path, tolerance)` (binary STL) |
 
 ## Selections and selectors
 

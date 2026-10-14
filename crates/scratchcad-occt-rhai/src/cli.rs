@@ -1,7 +1,10 @@
 //! The `occt-rhai` command line tool: runs a script and exports the shape it produces.
 
-use crate::{script::DEFAULT_STL_TOLERANCE, to_shape};
+use crate::to_shape;
 use std::{io::Write, path::PathBuf};
+
+/// The STL meshing tolerance used unless `--tolerance` is given.
+pub const DEFAULT_STL_TOLERANCE: f64 = 0.01;
 
 pub const USAGE: &str = "\
 usage: occt-rhai <script.rhai> [--output <file>] [--tolerance <mm>] [--verbose]
